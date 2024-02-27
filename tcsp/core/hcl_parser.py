@@ -2,7 +2,7 @@ import logging
 from typing import Set
 
 import hcl2
-import lark
+from lark import LarkError
 
 from tcsp.core import Resource
 
@@ -36,8 +36,10 @@ def list_hcl_dependencies(resource: Resource) -> set[str]:
     with open(resource.local_path, 'r') as file:
         try:
             hcl_dict = hcl2.load(file)
-        except (lark.exceptions.UnexpectedCharacters, lark.exceptions.UnexpectedToken) as e:
-            logger.warning(f"Failed to parse '{resource.remote_resource.get_relative_path_with_name()}'", exc_info=e)
+        except LarkError as e:
+            logger.warning(f"Failed to parse '{resource.remote_resource.get_relative_path_with_name()}'")
+            logger.debug(f"Failed to parse '{resource.remote_resource.get_relative_path_with_name()}'", exc_info=e)
+            return set()
 
     detected_dependencies: set[str] = hcl_dependencies(hcl_dict)
 
