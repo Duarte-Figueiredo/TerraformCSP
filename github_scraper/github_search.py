@@ -129,17 +129,15 @@ async def cleanup_interrupted_day(config: GithubConfig):
     latest_fully_processed_date: date = result.day_date + timedelta(days=1)
     lasted_processed_datetime: datetime = datetime.combine(latest_fully_processed_date, time(0, 0, 0))
 
-    # if latest_fully_processed_date <= config.last_date_queried:
     logger.warning(f"Deleting all search results before date {lasted_processed_datetime}")
 
     delete_results: list[GithubSearchResult] = await GithubSearchResult.find(
         GithubSearchResult.created_at < lasted_processed_datetime).to_list()
 
-    x = input(
-        f"Found {len(delete_results)} github search results that have created_at date < {lasted_processed_datetime}\n"
-        f"Do you wish to delete them? y/N")
+    logger.info(
+        f"Found {len(delete_results)} github search results that have created_at date < {lasted_processed_datetime}\n")
 
-    if x and x == 'y' and not DRY_RUN:
+    if not DRY_RUN:
         for delete_result in delete_results:
             logger.info(f"Deleting {delete_result.repo_name} created at {delete_result.created_at}")
             await GithubSearchResult.delete(delete_result)
