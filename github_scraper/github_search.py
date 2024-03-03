@@ -119,7 +119,7 @@ async def get_latest_result_day() -> Optional[GithubSearchResultDay]:
     return results[0] if results else None
 
 
-async def cleanup_interrupted_day(config: GithubConfig):
+async def cleanup_interrupted_day():
     result: Optional[GithubSearchResultDay] = await get_latest_result_day()
 
     if not result:
@@ -149,13 +149,13 @@ async def main():
     await initialize_db()
     config: GithubConfig = await get_github_config()
 
-    await cleanup_interrupted_day(config)
+    await cleanup_interrupted_day()
 
     total_results = config.total_results
 
     logger.info(f"current total results {config.total_results}")
 
-    next_date: date = config.last_date_queried
+    next_date: date = config.last_date_queried - timedelta(days=1)
 
     logger.info(f"Starting on date {next_date}")
 
