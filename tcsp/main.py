@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from tcsp.core import crawler, RemoteResource, GitHubReference
 
@@ -17,4 +18,7 @@ if __name__ == '__main__':
                          relative_path=(),
                          name="main.tf")
 
-    crawler.crawl(rrr, OUTPUT_FOLDER)
+    # craw and parse resources locally TODO split me
+    hcl_raw_list: list[dict[str, Any]] = crawler.crawl(rrr, OUTPUT_FOLDER)
+
+    print(hcl_raw_list)

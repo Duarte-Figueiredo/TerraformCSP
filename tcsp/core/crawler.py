@@ -1,16 +1,19 @@
 import logging
 from typing import Set, List
 
-from tcsp.core import Resource, hcl_parser, RemoteResource, GitHubReference, RemoteReference
+from tcsp.core import Resource, RemoteResource, GitHubReference, RemoteReference
+from tcsp.core.hcl import hcl_parser
 from tcsp.external import download_manager, github_manager
 
 logger = logging.getLogger("crawler")
 
 
-def crawl(root_remote_resource: RemoteResource, output_folder_path: str):
+def crawl(root_remote_resource: RemoteResource, output_folder_path: str) -> list[dict[str, any]]:
     logger.info("Starting crawling")
     files_parsed: Set[RemoteResource] = set()
     files_to_parse: Set[RemoteResource] = {root_remote_resource}
+
+    hcl_resources: list[dict[str, any]] = []
 
     while files_to_parse:
         next_file: RemoteResource = files_to_parse.pop()
@@ -23,7 +26,7 @@ def crawl(root_remote_resource: RemoteResource, output_folder_path: str):
 
         resource: Resource
         for resource in resources:
-            dependencies: set[str] = hcl_parser.list_hcl_dependencies(resource)
+            dependencies: set[str] = hcl_parser.list_hcl_dependencies(resource, hcl_resources)
 
             if dependencies:
                 logger.info(f"Detected the following dependencies for {resource.name} '{dependencies}'")
@@ -39,7 +42,8 @@ def crawl(root_remote_resource: RemoteResource, output_folder_path: str):
                 if isinstance(rrr, GitHubReference):
                     rr = github_manager.dependency_builder(dependency, next_file, rrr)
                 else:
-                    raise RuntimeError(f"I don't know how to download ${type(rrr)}")
+                    raise RuntimeError(f"I don't know how to download {type(rrr)}")
                 files_to_parse.add(rr)
 
     logger.info("Finish crawling successfully")
+    return hcl_resources
