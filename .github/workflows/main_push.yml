@@ -32,4 +32,4 @@
            context: .
            file: ./dockerfiles/2_repo_main_fetcher.Dockerfile
            push: true
-           tags: ghcr.io/${{ github.repository_owner }}/repo_main_fetcher:latest
+           tags: ghcr.io/Duarte-Figueiredo/TerraformCSP/repo_main_fetcher:latest
