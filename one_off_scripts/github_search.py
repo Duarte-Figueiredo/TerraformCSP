@@ -1,25 +1,14 @@
 import asyncio
 import logging
-import os
 from datetime import datetime, date, time, timedelta
 from typing import List, Coroutine, Optional
 
-from beanie import init_beanie
 from beanie.odm.operators.update.general import Set
-from github import Github
 from github.PaginatedList import PaginatedList
 from github.Repository import Repository
-from motor.motor_asyncio import AsyncIOMotorClient
 
-from github_scraper import GithubConfig, GithubSearchResult, GithubSearchResultDay
-
-ACCESS_TOKEN: str = os.environ['ACCESS_TOKEN']
-MONGO_DB_USER: str = os.environ['MONGO_DB_USER']
-MONGO_DB_PASS: str = os.environ['MONGO_DB_PASS']
-MONGO_DB_URL: str = os.environ.get('MONGO_DB_URL', '192.168.1.12:27017')
-DRY_RUN: bool = bool(os.environ.get('DRY_RUN', "True"))
-
-MONGO_DATABASE_URL = f"mongodb://{MONGO_DB_USER}:{MONGO_DB_PASS}@{MONGO_DB_URL}"
+from one_off_scripts import GithubConfig, GithubSearchResult, GithubSearchResultDay, DRY_RUN, initialize_db, \
+    github_client
 
 CONFIG_NAME = "github_config"
 CURRENT_DATE = datetime(2024, 3, 1)
@@ -27,18 +16,10 @@ DATE_FORMAT = "%Y-%m-%d"
 
 MONGO_DATABASE_NAME = "thesis"
 
-g = Github(ACCESS_TOKEN)
 query = ''
 
 logger = logging.getLogger("github_search")
 logging.basicConfig(level=logging.INFO)
-
-
-async def initialize_db():
-    mongo_client = AsyncIOMotorClient(MONGO_DATABASE_URL)
-
-    await init_beanie(database=mongo_client.thesis,
-                      document_models=[GithubConfig, GithubSearchResult, GithubSearchResultDay])
 
 
 async def get_github_config() -> GithubConfig:
@@ -63,7 +44,7 @@ async def search_code(d: date, config: GithubConfig) -> int:
 
     created_query = f"{date_str}..{date_str}"
     # Print the list of repositories
-    repositories: PaginatedList[Repository] = g.search_repositories(
+    repositories: PaginatedList[Repository] = github_client.search_repositories(
         query="",
         language="HCL",
         created=created_query

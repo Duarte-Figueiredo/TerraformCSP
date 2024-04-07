@@ -26,3 +26,7 @@ Get all project from github that
 "azurerm_windows_function_app", # https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/windows_function_app
 "azurerm_kubernetes_cluster", # https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/kubernetes_cluster
 "azurerm_virtual_machine", # https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_machine
+
+
+# python notebook para investigação
+# medir labels dentro de cada serviço/ contagem

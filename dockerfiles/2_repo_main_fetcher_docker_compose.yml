@@ -1,0 +1,13 @@
+version: "3.3"
+services:
+  repo_main_fetcher:
+    container_name: repo_main_fetcher
+    build:
+      context: ../
+      dockerfile: dockerfiles/2_repo_main_fetcher.Dockerfile
+#    environment:
+#      - ACCESS_TOKEN=
+#      - MONGO_DB_PASS=
+#      - MONGO_DB_URL=
+#      - MONGO_DB_USER=
+    network_mode: host

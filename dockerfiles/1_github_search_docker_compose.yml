@@ -1,0 +1,12 @@
+version: "3.3"
+services:
+  github_search:
+    container_name: github_search
+    build:
+      context: .
+      dockerfile: 1_github_search.Dockerfile
+#    environment:
+#      - ACCESS_TOKEN=
+#      - MONGO_DB_PASS=
+#      - MONGO_DB_URL=
+#      - MONGO_DB_USER=
