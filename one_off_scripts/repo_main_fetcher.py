@@ -2,6 +2,7 @@ import asyncio
 import logging
 from typing import List
 
+from beanie.odm.operators.update.general import Set
 from github.ContentFile import ContentFile
 from github.PaginatedList import PaginatedList
 
@@ -41,10 +42,8 @@ async def fetch_repo(github_search_result: GithubSearchResult):
     main_paths: [str] = []
     for content_file in main_files: main_paths.append(content_file.path)
 
-    github_search_result.main_tf = main_paths
-
     if not DRY_RUN:
-        await github_search_result.update()
+        await github_search_result.update(Set({GithubSearchResult.main_tf: main_paths}))
 
 
 # query = {'$or': [{'downloaded': False}, {'downloaded': {'$exists': False}}]}
