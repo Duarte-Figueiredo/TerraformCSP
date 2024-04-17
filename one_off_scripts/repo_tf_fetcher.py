@@ -6,12 +6,11 @@ from beanie.odm.operators.update.general import Set
 from github import Repository, Branch
 
 import terraform_analyzer
-from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN
+from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN, OUTPUT_FOLDER
 from terraform_analyzer.external import github_client
 
-query = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}
-
-OUTPUT_FOLDER = "/output"
+# query = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}
+query = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': True}}
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("repo_tf_fetcher")
@@ -52,7 +51,7 @@ async def fetch_repo(github_search_result: GithubSearchResult):
     try:
         root_main_tf_path: str = get_most_root_main_tf(github_search_result.main_tf)
     except AmbiguousRootMain as e:
-        logger.error(f"Failed to download {github_search_result.id}", exc_info=e)
+        logger.error(f"Failed to download {github_search_result.id} due to {e.message}")
         await github_search_result.update(Set({GithubSearchResult.downloaded: False}))
         return
 
@@ -90,13 +89,15 @@ async def main():
     await initialize_db()
 
     while True:
+        # results = await GithubSearchResult.find(query) \
+        #     .limit(10) \
+        #     .to_list()
         results = await GithubSearchResult.find(query) \
-            .limit(10) \
             .to_list()
 
         for result in results:
-
             await fetch_repo(result)
+        break
 
 
 if __name__ == '__main__':
