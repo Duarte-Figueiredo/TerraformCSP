@@ -9,12 +9,18 @@ import terraform_analyzer
 from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN
 from terraform_analyzer.external import github_client
 
-query = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$ne': True}}
+query = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}
 
 OUTPUT_FOLDER = "/output"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("repo_tf_fetcher")
+
+
+class AmbiguousRootMain(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
 
 
 def get_most_root_main_tf(main_tfs: [str]) -> str:
@@ -34,7 +40,7 @@ def get_most_root_main_tf(main_tfs: [str]) -> str:
             tmp[slash_count] = [main_tf]
 
     if len(tmp[min_slash_count]) > 1:
-        raise RuntimeError(f"Ambiguous root main.tf between '{tmp[min_slash_count]}'")
+        raise AmbiguousRootMain(f"Ambiguous root main.tf between '{tmp[min_slash_count]}'")
 
     return tmp[min_slash_count][0]
 
@@ -43,7 +49,12 @@ async def fetch_repo(github_search_result: GithubSearchResult, commit_hash: str)
     logger.info(f"@fetch_repo {github_search_result.id}:{commit_hash}")
     author, repo_name = github_search_result.id.split('/')
 
-    root_main_tf_path: str = get_most_root_main_tf(github_search_result.main_tf)
+    try:
+        root_main_tf_path: str = get_most_root_main_tf(github_search_result.main_tf)
+    except AmbiguousRootMain as e:
+        logger.error(f"Failed to download {github_search_result.id}", e)
+        await github_search_result.update(Set({GithubSearchResult.downloaded: False}))
+        return
 
     tf_root_parent_folder_path = os.path.dirname(root_main_tf_path)
     tf_main_file_name = os.path.basename(root_main_tf_path)
