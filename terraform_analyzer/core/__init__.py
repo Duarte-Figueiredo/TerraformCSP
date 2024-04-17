@@ -1,3 +1,4 @@
+import os
 from typing import Tuple
 
 from pydantic import BaseModel
@@ -57,12 +58,29 @@ class RemoteResource(BaseModel):
         frozen = True
 
 
-class Resource(BaseModel):
-    remote_resource: RemoteResource
-
-    local_path: str
+class LocalResource(BaseModel):
+    # local_path contains name
+    parent_dir: str
     name: str
     is_directory: bool
+
+    def get_parent_folder(self):
+        parent_local_path = os.path.dirname(self.parent_dir)
+        parent_name = os.path.basename(self.parent_dir)
+        return LocalResource(parent_dir=parent_local_path,
+                             name=parent_name,
+                             is_directory=True)
+
+    def get_full_path(self):
+        return f"{self.parent_dir}/{self.name}"
+
+    class Config:
+        frozen = True
+
+
+class Resource(BaseModel):
+    remote_resource: RemoteResource
+    local_resource: LocalResource
 
     class Config:
         frozen = True

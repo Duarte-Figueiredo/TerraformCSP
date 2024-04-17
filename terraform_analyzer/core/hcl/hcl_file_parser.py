@@ -1,11 +1,11 @@
 import logging
-from typing import Set
+from typing import Set, Any
 
 import hcl2
 from lark import LarkError
 
-from tcsp.core import Resource
-from tcsp.core.hcl import CLOUD_RESOURCE_TYPE_VALUES
+from terraform_analyzer.core import Resource, LocalResource
+from terraform_analyzer.core.hcl import CLOUD_RESOURCE_TYPE_VALUES
 
 MODULE = "module"
 MODULE_SOURCE = "source"
@@ -14,6 +14,7 @@ TF_SUFFIX = ".tf"
 TF_MAIN_FILE_NAME = "main.tf"
 
 logger = logging.getLogger("hcl_parser")
+
 
 # CloudName Serverless      Cluster VPS                     Gateways    VPC     DB?
 # AWS       Lambda          EKS     EC2
@@ -75,9 +76,9 @@ def extract_relevant_resources_from_dict(hcl_dict: dict, path_context: str) -> l
     return relevant_resources
 
 
-def list_hcl_dependencies(resource: Resource, hcl_resources: list) -> set[str]:
+def list_hcl_dependencies(resource: Resource) -> set[str]:
     hcl_dict: dict
-    with open(resource.local_path, 'r') as file:
+    with open(resource.local_resource.parent_dir, 'r') as file:
         try:
             hcl_dict = hcl2.load(file)
         except LarkError as e:
@@ -85,10 +86,22 @@ def list_hcl_dependencies(resource: Resource, hcl_resources: list) -> set[str]:
             logger.debug(f"Failed to parse '{resource.remote_resource.get_relative_path_with_name()}'", exc_info=e)
             return set()
 
-    relevant_resources = extract_relevant_resources_from_dict(hcl_dict, resource.remote_resource.get_relative_path())
-    if relevant_resources:
-        hcl_resources.extend(relevant_resources)
-
     detected_dependencies: set[str] = hcl_dependencies(hcl_dict)
 
     return detected_dependencies
+
+
+def list_hcl_resources(resource: LocalResource) -> list[dict[str, Any]]:
+    hcl_dict: dict
+
+    with open(resource.get_full_path(), 'r') as file:
+        try:
+            hcl_dict = hcl2.load(file)
+        except LarkError as e:
+            logger.warning(f"Failed to parse '{resource.get_full_path()}'")
+            logger.debug(f"Failed to parse '{resource.get_full_path()}'", exc_info=e)
+            return []
+
+    relevant_resources = extract_relevant_resources_from_dict(hcl_dict, resource.get_full_path())
+
+    return relevant_resources

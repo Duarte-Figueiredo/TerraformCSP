@@ -3,14 +3,10 @@ import re
 from enum import Enum
 from typing import List, Optional
 
-import requests
 from pydantic import BaseModel, TypeAdapter
 
-from tcsp.core import RemoteResource, GitHubReference
-
-# https://api.github.com/repos/Duarte-Figueiredo/Leetcode/contents/src/main/kotlin/1480.kt
-# https://api.github.com/repos/Duarte-Figueiredo/Leetcode/contents/src/main/kotlin?ref=c679920179034fad78ea7df1634f68235ae2ef62
-# https://api.github.com/repos/Duarte-Figueiredo/Leetcode/contents/src/main/kotlin?ref=48289a1
+from terraform_analyzer.core import RemoteResource, GitHubReference
+from terraform_analyzer.external import github_session
 
 DOT_COM_REGEX = r".*?\.com\/"
 
@@ -47,6 +43,7 @@ def _map_github_folder_response_to_remote_resource(github_folder_response: Githu
                           name=github_folder_response.name)
 
 
+# unused for now, might come handy when passing a main.tf url into analizer
 def _repo_extract(resource_full_url_path: str) -> GithubContextResource:
     url_path = re.sub(DOT_COM_REGEX, "", resource_full_url_path)
     author: str
@@ -66,7 +63,7 @@ def list_files_in_remote_folder(remote_resource: RemoteResource, git_proj: GitHu
     url = f"https://api.github.com/repos/{git_proj.author}/{git_proj.project}/contents/{path_with_name}?ref={git_proj.commit_hash}"
 
     logger.info(f"Fetching '{remote_resource}'")
-    response = requests.get(url)
+    response = github_session.get(url)
 
     if response.status_code != 200:
         raise RuntimeError(
@@ -85,7 +82,7 @@ def list_files_in_remote_folder(remote_resource: RemoteResource, git_proj: GitHu
 def is_resource_link_type_a_dir(resource_path: str, ghr: GitHubReference) -> bool:
     url = f"https://api.github.com/repos/{ghr.author}/{ghr.project}/contents/{resource_path}?ref={ghr.commit_hash}"
 
-    response = requests.get(url)
+    response = github_session.get(url)
 
     if response.status_code != 200:
         raise RuntimeError(

@@ -3,10 +3,8 @@ import logging
 import os
 from typing import List
 
-import requests
-
-from tcsp.core import Resource, RemoteResource, GitHubReference
-from tcsp.external import github_manager
+from terraform_analyzer.core import Resource, RemoteResource, GitHubReference, LocalResource
+from terraform_analyzer.external import github_manager, github_session
 
 GITHUB_RESOURCE = "github"
 
@@ -65,11 +63,12 @@ def download_github_file(rr: RemoteResource, github_r: GitHubReference, output_p
     if os.path.exists(local_file_path):
         logger.info(f"Skipping download of {rr.get_remote_abs_path_with_name()} since it already exists")
 
-    tf_file = requests.get(url)
+    tf_file = github_session.get(url)
     os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
     open(local_file_path, 'wb').write(tf_file.content)
 
     return Resource(remote_resource=rr,
-                    local_path=local_file_path,
-                    name=rr.name,
-                    is_directory=rr.is_directory)
+                    local_resource=LocalResource(
+                        parent_dir=local_file_path,
+                        name=rr.name,
+                        is_directory=rr.is_directory))

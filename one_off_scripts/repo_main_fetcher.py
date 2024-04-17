@@ -40,7 +40,8 @@ async def fetch_repo(github_search_result: GithubSearchResult):
     main_files: List[ContentFile] = find_github_main_root_tf(github_search_result)
 
     main_paths: [str] = []
-    for content_file in main_files: main_paths.append(content_file.path)
+    for content_file in main_files:
+        main_paths.append(content_file.path)
 
     if not DRY_RUN:
         await github_search_result.update(Set({GithubSearchResult.main_tf: main_paths}))

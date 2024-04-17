@@ -18,8 +18,8 @@ MONGO_DATABASE_NAME = "thesis"
 
 query = ''
 
-logger = logging.getLogger("github_search")
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("github_search")
 
 
 async def get_github_config() -> GithubConfig:

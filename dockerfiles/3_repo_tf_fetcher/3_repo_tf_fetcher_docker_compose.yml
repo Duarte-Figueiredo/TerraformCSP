@@ -1,0 +1,19 @@
+version: "3.3"
+services:
+  repo_tf_fetcher:
+    container_name: repo_tf_fetcher
+    image: repo_tf_fetcher
+#    build:
+#      context: ../..
+#      dockerfile: dockerfiles/3_repo_tf_fetcher/3_repo_tf_fetcher.Dockerfile
+    environment:
+      - ACCESS_TOKEN=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
+      - MONGO_DB_PASS=Q4p^TvXKS7hH
+      - MONGO_DB_URL=localhost:27017
+      - MONGO_DB_USER=root
+      - DRY_RUN=false
+    volumes:
+      - /home/duarte/Documents/Personal/Code/TerraformCSP/output:/output
+    network_mode: host
+#    networks:
+#      - mongo_network
