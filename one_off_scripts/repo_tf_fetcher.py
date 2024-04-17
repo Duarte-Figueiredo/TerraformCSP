@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os.path
 
+from beanie.odm.operators.update.general import Set
 from github import Repository, Branch
 
 import terraform_analyzer
@@ -57,10 +58,10 @@ async def fetch_repo(github_search_result: GithubSearchResult, commit_hash: str)
         except Exception as e:
             logger.error(f"Failed to download {github_search_result.id}", e)
 
-            # await github_search_result.update(Set({GithubSearchResult.downloaded: False}))
+            await github_search_result.update(Set({GithubSearchResult.downloaded: False}))
             return
 
-        # await github_search_result.update(Set({GithubSearchResult.downloaded: True}))
+        await github_search_result.update(Set({GithubSearchResult.downloaded: True}))
 
 
 def fetch_hash(repo_id: str, default_branch: str) -> str:
