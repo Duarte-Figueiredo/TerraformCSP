@@ -7,8 +7,8 @@ from beanie.odm.operators.update.general import Set
 from github.PaginatedList import PaginatedList
 from github.Repository import Repository
 
-from one_off_scripts import GithubConfig, GithubSearchResult, GithubSearchResultDay, DRY_RUN, initialize_db, \
-    github_client
+from one_off_scripts import GithubConfig, GithubSearchResult, GithubSearchResultDay, DRY_RUN, initialize_db
+from terraform_analyzer.external import github_client
 
 CONFIG_NAME = "github_config"
 CURRENT_DATE = datetime(2024, 3, 1)

@@ -42,7 +42,8 @@ def run_terraform_analyzer(github_author: str,
                            project=github_project,
                            commit_hash=github_commit_hash,
                            path=tf_root_parent_folder_path,
-                           tf_main_file_name=tf_main_file_name)
+                           tf_main_file_name=tf_main_file_name,
+                           output_folder=RESOURCE_OUTPUT_FOLDER)
 
     main_resource = LocalResource(parent_dir=RESOURCE_OUTPUT_FOLDER,
                                   name=tf_main_file_name,

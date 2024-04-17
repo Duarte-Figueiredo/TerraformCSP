@@ -6,9 +6,10 @@ from beanie.odm.operators.update.general import Set
 from github import Repository, Branch
 
 import terraform_analyzer
-from one_off_scripts import initialize_db, GithubSearchResult, github_client, DRY_RUN
+from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN
+from terraform_analyzer.external import github_client
 
-query = {'main_tf': {'$ne': [], '$exists': True}}
+query = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$ne': True}}
 
 OUTPUT_FOLDER = "/output"
 

@@ -6,7 +6,8 @@ from beanie.odm.operators.update.general import Set
 from github.ContentFile import ContentFile
 from github.PaginatedList import PaginatedList
 
-from one_off_scripts import initialize_db, GithubSearchResult, github_client, DRY_RUN
+from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN
+from terraform_analyzer.external import github_client
 
 logger = logging.getLogger("mongo_git_fetcher")
 logging.basicConfig(level=logging.INFO)

@@ -3,8 +3,10 @@ import logging
 import os
 from typing import List
 
+from github import Repository, ContentFile
+
 from terraform_analyzer.core import Resource, RemoteResource, GitHubReference, LocalResource
-from terraform_analyzer.external import github_manager, github_session
+from terraform_analyzer.external import github_manager, github_client
 
 GITHUB_RESOURCE = "github"
 
@@ -50,22 +52,23 @@ def download_file(rr: RemoteResource, output_path: str) -> Resource:
 
 # https://raw.githubusercontent.com/nargetdev/outserv/main/contrib/config/terraform/kubernetes/modules/aws/main.tf
 def download_github_file(rr: RemoteResource, github_r: GitHubReference, output_path: str) -> Resource:
-    url = f"https://raw.githubusercontent.com/" \
-          f"{github_r.author}/" \
-          f"{github_r.project}/" \
-          f"{github_r.commit_hash}/" \
-          f"{rr.get_remote_abs_path_with_name()}"
+    repo_file_ref = f"{github_r.author}/" \
+                    f"{github_r.project}/" \
+                    f"{github_r.commit_hash}/" \
+                    f"{rr.get_remote_abs_path_with_name()}"
 
     local_file_path = f"{output_path}/{rr.get_remote_abs_path_with_name()}"
 
-    logging.info(f"Downloading file '{url}' into '{local_file_path}'")
+    logging.info(f"Downloading file '{repo_file_ref}' into '{local_file_path}'")
 
     if os.path.exists(local_file_path):
         logger.info(f"Skipping download of {rr.get_remote_abs_path_with_name()} since it already exists")
 
-    tf_file = github_session.get(url)
+    repo: Repository = github_client.get_repo(f"{github_r.author}/{github_r.project}")
+    content_file: ContentFile = repo.get_contents(rr.get_remote_abs_path_with_name(), github_r.commit_hash)
+
     os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
-    open(local_file_path, 'wb').write(tf_file.content)
+    open(local_file_path, 'wb').write(content_file.decoded_content)
 
     return Resource(remote_resource=rr,
                     local_resource=LocalResource(
