@@ -1,0 +1,15 @@
+version: "3.3"
+services:
+  repo_main_fetcher:
+    container_name: repo_main_fetcher
+    build:
+      context: ../..
+      dockerfile: 2_repo_main_fetcher.Dockerfile
+    environment:
+      - ACCESS_TOKEN=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
+      - MONGO_DB_PASS=Q4p^TvXKS7hH
+      - MONGO_DB_URL=mongo:27017
+      - MONGO_DB_USER=root
+      - DRY_RUN=false
+    networks:
+      - mongo_network

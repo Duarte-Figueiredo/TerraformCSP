@@ -3,7 +3,7 @@ services:
   github_search:
     container_name: github_search
     build:
-      context: .
+      context: ..
       dockerfile: 1_github_search.Dockerfile
 #    environment:
 #      - ACCESS_TOKEN=
