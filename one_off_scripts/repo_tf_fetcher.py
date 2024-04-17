@@ -45,14 +45,14 @@ def get_most_root_main_tf(main_tfs: [str]) -> str:
     return tmp[min_slash_count][0]
 
 
-async def fetch_repo(github_search_result: GithubSearchResult, commit_hash: str):
-    logger.info(f"@fetch_repo {github_search_result.id}:{commit_hash}")
+async def fetch_repo(github_search_result: GithubSearchResult):
+    logger.info(f"@fetch_repo {github_search_result.id}")
     author, repo_name = github_search_result.id.split('/')
 
     try:
         root_main_tf_path: str = get_most_root_main_tf(github_search_result.main_tf)
     except AmbiguousRootMain as e:
-        logger.error(f"Failed to download {github_search_result.id}", e)
+        logger.error(f"Failed to download {github_search_result.id}", exc_info=e)
         await github_search_result.update(Set({GithubSearchResult.downloaded: False}))
         return
 
@@ -61,6 +61,7 @@ async def fetch_repo(github_search_result: GithubSearchResult, commit_hash: str)
 
     if not DRY_RUN:
         try:
+            commit_hash = fetch_hash(github_search_result.id, github_search_result.all_attributes["default_branch"])
             terraform_analyzer.download_terraform(author,
                                                   repo_name,
                                                   commit_hash,
@@ -68,7 +69,7 @@ async def fetch_repo(github_search_result: GithubSearchResult, commit_hash: str)
                                                   tf_main_file_name,
                                                   f"{OUTPUT_FOLDER}/{github_search_result.id}")
         except Exception as e:
-            logger.error(f"Failed to download {github_search_result.id}", e)
+            logger.error(f"Failed to download {github_search_result.id}", exc_info=e)
 
             await github_search_result.update(Set({GithubSearchResult.downloaded: False}))
             return
@@ -94,8 +95,8 @@ async def main():
             .to_list()
 
         for result in results:
-            commit_hash = fetch_hash(result.id, result.all_attributes["default_branch"])
-            await fetch_repo(result, commit_hash)
+
+            await fetch_repo(result)
 
 
 if __name__ == '__main__':
