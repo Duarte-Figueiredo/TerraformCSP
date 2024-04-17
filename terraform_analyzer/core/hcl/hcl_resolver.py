@@ -16,7 +16,7 @@ VAR_PATTERN = re.compile('\$\{var\..*}')
 VAR_NAME_PATTERN = re.compile('\$\{var\.(.*)}')
 
 
-class Component(BaseModel):
+class TerraformResource(BaseModel):
     name: str
     terraform_resource_name: str
     resource_type: str
@@ -44,7 +44,7 @@ def _extract_name_of_component_from_metadata(obj: dict) -> str:
     raise RuntimeError(f"Unable to extract name from metadata '{obj}")
 
 
-def _extract_component_from_dict(d: dict) -> Component:
+def _extract_component_from_dict(d: dict) -> TerraformResource:
     for key, obj in d.items():
         resource_type: str = key
         terraform_resource_name: str = list(obj.keys())[0]
@@ -55,13 +55,13 @@ def _extract_component_from_dict(d: dict) -> Component:
         else:
             name = obj["name"]
 
-        return Component(name=name,
-                         terraform_resource_name=terraform_resource_name,
-                         resource_type=resource_type)
+        return TerraformResource(name=name,
+                                 terraform_resource_name=terraform_resource_name,
+                                 resource_type=resource_type)
 
 
-def _extract_component_from_list(lis: list[any]) -> [Component]:
-    components: [Component] = []
+def _extract_component_from_list(lis: list[any]) -> [TerraformResource]:
+    components: [TerraformResource] = []
     for item in lis:
         if type(item) is list:
             item: list
@@ -75,21 +75,21 @@ def _extract_component_from_list(lis: list[any]) -> [Component]:
     return components
 
 
-def _resolve_component(component: Component, variables: dict[str, str]) -> Component:
+def _resolve_component(component: TerraformResource, variables: dict[str, str]) -> TerraformResource:
     var_name = VAR_NAME_PATTERN.findall(component.name)
 
     if var_name:
         var_value = variables[var_name[0]]
         real_component_name = re.sub(VAR_PATTERN, var_value, component.name)
 
-        return Component(name=real_component_name,
-                         terraform_resource_name=component.terraform_resource_name,
-                         resource_type=component.resource_type)
+        return TerraformResource(name=real_component_name,
+                                 terraform_resource_name=component.terraform_resource_name,
+                                 resource_type=component.resource_type)
     return component
 
 
-def resolve(hcl_raw_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    hcl_resolved_list: list[dict[str, Any]] = []
+def resolve(hcl_raw_list: list[dict[str, Any]]) -> list[TerraformResource]:
+    hcl_resolved_list: list[TerraformResource] = []
 
     hcl_variables: dict[str, list[dict[str, any]]] = {}
 
@@ -105,15 +105,15 @@ def resolve(hcl_raw_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
         for key in hcl_raw.keys():
             if key.endswith(RESOURCE):
                 path = os.path.dirname(key)
-                variables: dict[str, str] = _load_variables(hcl_variables[path])
+
+                variables: dict[str, str] = _load_variables(hcl_variables[path]) if path in hcl_variables else {}
                 value = hcl_raw[key]
 
                 for resource in value:
-                    new_comps: list[Component] = _extract_component_from_list(resource)
+                    new_comps: list[TerraformResource] = _extract_component_from_list(resource)
 
                     for unresolved_comp in new_comps:
                         resolved_comp = _resolve_component(unresolved_comp, variables)
-                        tmp = resolved_comp.model_dump()
-                        hcl_resolved_list.append(tmp)
+                        hcl_resolved_list.append(resolved_comp)
 
     return hcl_resolved_list

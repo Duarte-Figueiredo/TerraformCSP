@@ -4,6 +4,7 @@ from typing import Any
 
 from terraform_analyzer.core import LocalResource
 from terraform_analyzer.core.hcl import hcl_file_parser, hcl_resolver
+from terraform_analyzer.core.hcl.hcl_resolver import TerraformResource
 
 logger = logging.getLogger("hcl_project_parser")
 
@@ -20,7 +21,7 @@ def _list_local_resource(path: str) -> [LocalResource]:
     return tmp
 
 
-def parse_project(main: LocalResource) -> list[dict[str, Any]]:
+def parse_project(main: LocalResource) -> list[TerraformResource]:
     # breath-first search
     main_folder = main.get_parent_folder()
 

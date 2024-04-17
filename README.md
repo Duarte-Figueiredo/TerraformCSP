@@ -30,3 +30,4 @@ Get all project from github that
 
 # python notebook para investigação
 # medir labels dentro de cada serviço/ contagem
+# detectar e medir tipo IAMs 
