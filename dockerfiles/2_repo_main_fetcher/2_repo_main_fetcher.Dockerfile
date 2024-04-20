@@ -2,10 +2,11 @@ FROM python:3
 
 WORKDIR /usr/src/app
 
-COPY ./requirements.txt ./
+COPY ../../requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ../../one_off_scripts ./one_off_scripts
+COPY ../../terraform_analyzer ./terraform_analyzer
 
 ENV PYTHONPATH=.
 
