@@ -9,8 +9,10 @@ import terraform_analyzer
 from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN, OUTPUT_FOLDER
 from terraform_analyzer.external import github_client
 
-# query = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}
-query = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': True}}
+PAGE_SIZE = 50
+
+# QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}
+QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': True}}
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("repo_tf_fetcher")
@@ -88,16 +90,23 @@ def fetch_hash(repo_id: str, default_branch: str) -> str:
 async def main():
     await initialize_db()
 
+    index = 0
+
     while True:
-        # results = await GithubSearchResult.find(query) \
-        #     .limit(10) \
-        #     .to_list()
-        results = await GithubSearchResult.find(query) \
+        logger.info(f"Processed {index}")
+
+        results = await GithubSearchResult.find(QUERY) \
+            .skip(index) \
+            .limit(PAGE_SIZE) \
             .to_list()
 
         for result in results:
             await fetch_repo(result)
-        break
+
+        if not results:
+            break
+
+        index += PAGE_SIZE
 
 
 if __name__ == '__main__':
