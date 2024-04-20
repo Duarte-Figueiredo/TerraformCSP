@@ -26,20 +26,20 @@
        - name: Set up Docker Buildx
          uses: docker/setup-buildx-action@v2
 
-#       - name: Build and push 2_repo_main_fetcher
-#         uses: docker/build-push-action@v5
-#         with:
-#           context: .
-#           file: ./dockerfiles/2_repo_main_fetcher/2_repo_main_fetcher.Dockerfile
-#           platforms: linux/arm64,linux/amd64
-#           push: true
-#           tags: ghcr.io/duarte-figueiredo/terraformcsp/repo_main_fetcher:latest
-
-       - name: Build and push 3_repo_tf_fetcher
+       - name: Build and push 2_repo_main_fetcher
          uses: docker/build-push-action@v5
          with:
            context: .
-           file: ./dockerfiles/3_repo_tf_fetcher/3_repo_tf_fetcher.Dockerfile
+           file: ./dockerfiles/2_repo_main_fetcher/2_repo_main_fetcher.Dockerfile
            platforms: linux/arm64,linux/amd64
            push: true
-           tags: ghcr.io/duarte-figueiredo/terraformcsp/repo_tf_fetcher:latest
+           tags: ghcr.io/duarte-figueiredo/terraformcsp/repo_main_fetcher:latest
+
+#       - name: Build and push 3_repo_tf_fetcher
+#         uses: docker/build-push-action@v5
+#         with:
+#           context: .
+#           file: ./dockerfiles/3_repo_tf_fetcher/3_repo_tf_fetcher.Dockerfile
+#           platforms: linux/arm64,linux/amd64
+#           push: true
+#           tags: ghcr.io/duarte-figueiredo/terraformcsp/repo_tf_fetcher:latest
