@@ -69,7 +69,7 @@ async def fetch_repo(github_search_result: GithubSearchResult):
                                                   commit_hash,
                                                   tf_root_parent_folder_path,
                                                   tf_main_file_name,
-                                                  f"{OUTPUT_FOLDER}/{github_search_result.id}")
+                                                  OUTPUT_FOLDER)
         except Exception as e:
             logger.error(f"Failed to download {github_search_result.id}", exc_info=e)
 
