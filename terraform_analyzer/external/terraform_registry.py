@@ -1,4 +1,5 @@
 # https://registry.terraform.io/v1/modules/terraform-aws-modules/kms/aws
+import logging
 from typing import List
 
 from pydantic import BaseModel, TypeAdapter
@@ -6,6 +7,8 @@ from pydantic import BaseModel, TypeAdapter
 from terraform_analyzer.external import request_session
 
 TERRAFORM_REGISTRY_MODULES_URL = "https://registry.terraform.io/v1/modules"
+
+logger = logging.getLogger("terraform_registry")
 
 
 class TerraformModuleProviderDependency(BaseModel):
@@ -27,13 +30,16 @@ class TerraformModuleInfo(BaseModel):
 
 def get_source_code(dependency: str) -> str:
     module_url = f"{TERRAFORM_REGISTRY_MODULES_URL}/{dependency}"
-    response = request_session.get(module_url)
-    response_json = response.json()
+    try:
+        response = request_session.get(module_url)
+        response_json = response.json()
 
-    ta = TypeAdapter(TerraformModuleInfo)
-    terraform_module_info = ta.validate_python(response_json)
+        ta = TypeAdapter(TerraformModuleInfo)
+        terraform_module_info = ta.validate_python(response_json)
 
-    return terraform_module_info.source
+        return terraform_module_info.source
+    except Exception as ex:
+        logger.error(f"Failed to grab source for terraform registry {module_url}")
 
 
 if __name__ == '__main__':
