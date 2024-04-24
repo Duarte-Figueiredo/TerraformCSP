@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os.path
 
-from beanie.odm.operators.update.general import Set
+from beanie.odm.operators.update.general import Set, Unset
 from github import Repository, Branch
 
 import terraform_analyzer
@@ -11,8 +11,9 @@ from terraform_analyzer.external import github_client
 
 PAGE_SIZE = 50
 
-# QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}
-QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': True}}
+QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}
+# QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': True}}
+# RESET_QUERY = {'downloaded': {'$exists': True}}
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("repo_tf_fetcher")
@@ -109,5 +110,24 @@ async def main():
         index += PAGE_SIZE
 
 
+# async def reset_downloaded():
+#     await initialize_db()
+#
+#     while True:
+#         results = await GithubSearchResult.find(RESET_QUERY) \
+#             .limit(PAGE_SIZE) \
+#             .to_list()
+#
+#         result: GithubSearchResult
+#
+#         for result in results:
+#             logger.info(f"Reset {result.id}")
+#             await result.update(Unset({GithubSearchResult.downloaded : None}))
+#
+#         if not results:
+#             break
+
+
 if __name__ == '__main__':
+    # asyncio.run(reset_downloaded())
     asyncio.run(main())
