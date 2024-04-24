@@ -8,7 +8,7 @@ from github import Github
 GITHUB_ACCESS_TOKEN: str = os.environ.get('ACCESS_TOKEN')
 logger = logging.getLogger("external/__init__")
 
-github_session = requests.Session()
+request_session = requests.Session()
 
 if GITHUB_ACCESS_TOKEN:
     auth = Auth.Token(GITHUB_ACCESS_TOKEN)

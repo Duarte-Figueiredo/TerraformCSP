@@ -57,7 +57,7 @@ def download_github_file(rr: RemoteResource, github_r: GitHubReference, output_p
                     f"{github_r.commit_hash}/" \
                     f"{rr.get_remote_abs_path_with_name()}"
 
-    local_file_path = f"{output_path}/{rr.get_remote_abs_path_with_name()}"
+    local_file_path = f"{output_path}/{github_r.author}/{github_r.project}/{rr.get_remote_abs_path_with_name()}"
 
     logging.info(f"Downloading file '{repo_file_ref}' into '{local_file_path}'")
 
@@ -68,10 +68,10 @@ def download_github_file(rr: RemoteResource, github_r: GitHubReference, output_p
     content_file: ContentFile = repo.get_contents(rr.get_remote_abs_path_with_name(), github_r.commit_hash)
 
     os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
+
     open(local_file_path, 'wb').write(content_file.decoded_content)
 
     return Resource(remote_resource=rr,
-                    local_resource=LocalResource(
-                        parent_dir=local_file_path,
-                        name=rr.name,
-                        is_directory=rr.is_directory))
+                    local_resource=LocalResource(parent_dir=local_file_path,
+                                                 name=rr.name,
+                                                 is_directory=rr.is_directory))

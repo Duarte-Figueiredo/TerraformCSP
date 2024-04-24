@@ -3,12 +3,12 @@ import re
 from enum import Enum
 from typing import List, Optional, Union
 
-from github import Repository
+from github import Repository, Branch
 from github.ContentFile import ContentFile
 from pydantic import BaseModel
 
-from terraform_analyzer.external import github_client
 from terraform_analyzer.core import RemoteResource, GitHubReference
+from terraform_analyzer.external import github_client
 
 DOT_COM_REGEX = r".*?\.com\/"
 
@@ -53,6 +53,22 @@ def _map_github_content_file_to_remote_resource(github_content: ContentFile,
                           is_directory=github_content.type == GithubFileType.DIR.value,
                           relative_path=relative_path,
                           name=github_content.name)
+
+
+def repo_project_extract(github_project_url: str) -> GitHubReference:
+    url_path = re.sub(DOT_COM_REGEX, "", github_project_url)
+    (author, project) = url_path.split("/")
+
+    repo: Repository = github_client.get_repo(f"{author}/{project}")
+
+    main_branch: Branch = repo.get_branch(repo.default_branch)
+
+    commit_hash = main_branch.commit.sha
+
+    return GitHubReference(author=author,
+                           project=project,
+                           commit_hash=commit_hash,
+                           path="")
 
 
 # unused for now, might come handy when passing a main.tf url into analizer

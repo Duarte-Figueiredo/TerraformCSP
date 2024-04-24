@@ -15,18 +15,18 @@ class CloudProviderType(str, Enum):
 
 
 class CloudResourceType(str, Enum):
-    AWS_LAMBDA = 'aws_lambda_function'
+    # AWS_LAMBDA = 'aws_lambda_function' this blows up
     AWS_CLUSTER = 'aws_eks_cluster'
-    AWS_INSTANCE = 'aws_instance'
+    #AWS_INSTANCE = 'aws_instance'
 
-    GCLOUD_FUNCTION = 'google_cloudfunctions_function'
-    GCLOUD_VMWARE_CLUSTER = 'google_vmwareengine_cluster'
-    GCLOUD_INSTANCE = 'google_compute_instance'
-
-    AZURE_FUNCTION_LINUX = "azurerm_linux_function_app"
-    AZURE_FUNCTION_WINDOWS = "azurerm_windows_function_app"
-    AZURE_CLUSTER = "azurerm_kubernetes_cluster"
-    AZURE_INSTANCE = "azurerm_virtual_machine"
+    # GCLOUD_FUNCTION = 'google_cloudfunctions_function'
+    # GCLOUD_VMWARE_CLUSTER = 'google_vmwareengine_cluster'
+    # GCLOUD_INSTANCE = 'google_compute_instance'
+    #
+    # AZURE_FUNCTION_LINUX = "azurerm_linux_function_app"
+    # AZURE_FUNCTION_WINDOWS = "azurerm_windows_function_app"
+    # AZURE_CLUSTER = "azurerm_kubernetes_cluster"
+    # AZURE_INSTANCE = "azurerm_virtual_machine"
 
     KUBERNETES_SERVICE = "kubernetes_service"
     KUBERNETES_POD = "kubernetes_pod"
