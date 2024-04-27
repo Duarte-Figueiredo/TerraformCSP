@@ -22,10 +22,6 @@ logger = logging.getLogger("hcl_parser")
 # Azure     Azure Functions AKS     Azure Virtual Machines
 
 
-def sanitize_module_dependency(source: str) -> str:
-    return source.replace("./", "")
-
-
 def hcl_dependencies(tf: dict) -> Set[str]:
     dependencies: Set[str] = set()
 
@@ -35,7 +31,7 @@ def hcl_dependencies(tf: dict) -> Set[str]:
         for module in modules:
             resources: dict
             for resource in module.values():
-                dependencies.add(sanitize_module_dependency(resource[MODULE_SOURCE]))
+                dependencies.add(resource[MODULE_SOURCE])
 
     return dependencies
 

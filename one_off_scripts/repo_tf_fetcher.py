@@ -6,14 +6,16 @@ from beanie.odm.operators.update.general import Set, Unset
 from github import Repository, Branch
 
 import terraform_analyzer
-from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN, OUTPUT_FOLDER
+from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN
 from terraform_analyzer.external import github_client
 
-PAGE_SIZE = 50
+PAGE_SIZE = 500
 
 QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}
 # QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': True}}
-# RESET_QUERY = {'downloaded': {'$exists': True}}
+RESET_QUERY = {'downloaded': {'$exists': True}}
+
+OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/output"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("repo_tf_fetcher")
@@ -55,27 +57,29 @@ async def fetch_repo(github_search_result: GithubSearchResult):
         root_main_tf_path: str = get_most_root_main_tf(github_search_result.main_tf)
     except AmbiguousRootMain as e:
         logger.error(f"Failed to download {github_search_result.id} due to {e.message}")
-        await github_search_result.update(Set({GithubSearchResult.downloaded: False}))
+        if not DRY_RUN:
+            await github_search_result.update(Set({GithubSearchResult.downloaded: False}))
         return
 
     tf_root_parent_folder_path = os.path.dirname(root_main_tf_path)
     tf_main_file_name = os.path.basename(root_main_tf_path)
 
-    if not DRY_RUN:
-        try:
-            commit_hash = fetch_hash(github_search_result.id, github_search_result.all_attributes["default_branch"])
-            terraform_analyzer.download_terraform(author,
-                                                  repo_name,
-                                                  commit_hash,
-                                                  tf_root_parent_folder_path,
-                                                  tf_main_file_name,
-                                                  OUTPUT_FOLDER)
-        except Exception as e:
-            logger.error(f"Failed to download {github_search_result.id}", exc_info=e)
+    try:
+        commit_hash = fetch_hash(github_search_result.id, github_search_result.all_attributes["default_branch"])
+        terraform_analyzer.download_terraform(author,
+                                              repo_name,
+                                              commit_hash,
+                                              tf_root_parent_folder_path,
+                                              tf_main_file_name,
+                                              OUTPUT_FOLDER)
+    except Exception as e:
+        logger.error(f"Failed to download {github_search_result.id}", exc_info=e)
 
+        if not DRY_RUN:
             await github_search_result.update(Set({GithubSearchResult.downloaded: False}))
-            return
+        return
 
+    if not DRY_RUN:
         await github_search_result.update(Set({GithubSearchResult.downloaded: True}))
 
 
@@ -102,32 +106,41 @@ async def main():
             .to_list()
 
         for result in results:
+            index += 1
+            logger.info(f"Processed {index}")
             await fetch_repo(result)
 
         if not results:
             break
 
-        index += PAGE_SIZE
+        # index += PAGE_SIZE
 
 
-# async def reset_downloaded():
-#     await initialize_db()
-#
-#     while True:
-#         results = await GithubSearchResult.find(RESET_QUERY) \
-#             .limit(PAGE_SIZE) \
-#             .to_list()
-#
-#         result: GithubSearchResult
-#
-#         for result in results:
-#             logger.info(f"Reset {result.id}")
-#             await result.update(Unset({GithubSearchResult.downloaded : None}))
-#
-#         if not results:
-#             break
+async def reset_downloaded():
+    await initialize_db()
+
+    while True:
+        results = await GithubSearchResult.find(RESET_QUERY) \
+            .limit(PAGE_SIZE) \
+            .to_list()
+
+        result: GithubSearchResult
+
+        for result in results:
+            logger.info(f"Reset {result.id}")
+            await result.update(Unset({GithubSearchResult.downloaded: None}))
+
+        # if not results:
+        break
 
 
 if __name__ == '__main__':
     # asyncio.run(reset_downloaded())
     asyncio.run(main())
+    # commit_hash = fetch_hash("Anil-Nadikuda/vpc-test", "main")
+    # terraform_analyzer.download_terraform("Anil-Nadikuda",
+    #                                       "vpc-test",
+    #                                       commit_hash,
+    #                                       "",
+    #                                       "main.tf",
+    #                                       OUTPUT_FOLDER)

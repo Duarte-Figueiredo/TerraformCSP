@@ -1,7 +1,7 @@
 # resolves the variables
 import os
 import re
-from typing import Any
+from typing import Union, Any
 
 from pydantic import BaseModel
 
@@ -10,10 +10,16 @@ VARIABLE = "_variable"
 
 DEFAULT = "default"
 METADATA = "metadata"
+TAGS = "tags"
 NAME = "name"
 
-VAR_PATTERN = re.compile('\$\{var\..*}')
-VAR_NAME_PATTERN = re.compile('\$\{var\.(.*)}')
+COUNT_INDEX = "count.index"
+
+VAR_PATTERN = re.compile('\$\{var\.[^}]*}')
+COUNT_PATTERN = re.compile('\$\{count\.[^}]*}')
+VAR_NAME_PATTERN = re.compile('\$\{(?:(?:var)|(?:count))\.([^}]*)}')
+
+TF_RESOURCE_NAMES: set[str] = {"name", "function_name"}
 
 
 class TerraformResource(BaseModel):
@@ -38,10 +44,29 @@ def _load_variables(hcl_variables: list[dict[str, any]]) -> dict[str, str]:
     return var_name_value
 
 
-def _extract_name_of_component_from_metadata(obj: dict) -> str:
-    if METADATA in obj and NAME in obj[METADATA][0]:
-        return obj[METADATA][0][NAME]
-    raise RuntimeError(f"Unable to extract name from metadata '{obj}")
+def _lower_case_obj_keys(obj: dict[str, any]) -> dict[str, any]:
+    return {k.lower(): v for k, v in obj.items()}
+
+
+def _extract_name_from_dict(obj: dict) -> str:
+    nested_name_key = {METADATA, TAGS}
+    obj_lower_case_key = _lower_case_obj_keys(obj)
+
+    for key in nested_name_key:
+        if key in obj_lower_case_key:
+            nested_obj: Union[list[str], dict[str, str]] = obj_lower_case_key[key]
+
+            if isinstance(nested_obj, list):
+                nested_obj = nested_obj[0]
+            elif not isinstance(nested_obj, dict):
+                continue
+
+            nested_obj = _lower_case_obj_keys(nested_obj)
+
+            if NAME in nested_obj:
+                return nested_obj[NAME]
+
+    return "unknown"
 
 
 def _extract_component_from_dict(d: dict) -> TerraformResource:
@@ -50,10 +75,14 @@ def _extract_component_from_dict(d: dict) -> TerraformResource:
         terraform_resource_name: str = list(obj.keys())[0]
         obj: dict[str, any] = obj[terraform_resource_name]
 
-        if "name" not in obj:
-            name = _extract_name_of_component_from_metadata(obj)
+        name_value = TF_RESOURCE_NAMES.intersection(obj.keys())
+
+        if not name_value:
+            name = _extract_name_from_dict(obj)
+        elif len(name_value) == 1:
+            name = obj[name_value.pop()]
         else:
-            name = obj["name"]
+            raise RuntimeError(f"Conflicting names detected '{name_value}' in '{obj.keys()}'")
 
         return TerraformResource(name=name,
                                  terraform_resource_name=terraform_resource_name,
@@ -76,16 +105,19 @@ def _extract_component_from_list(lis: list[any]) -> [TerraformResource]:
 
 
 def _resolve_component(component: TerraformResource, variables: dict[str, str]) -> TerraformResource:
-    var_name = VAR_NAME_PATTERN.findall(component.name)
+    detected_vars = VAR_NAME_PATTERN.findall(component.name)
 
-    if var_name:
-        var_value = variables[var_name[0]]
-        real_component_name = re.sub(VAR_PATTERN, var_value, component.name)
+    real_component_name = component.name
+    for var in detected_vars:
+        if "index" in var:
+            real_component_name = re.sub(COUNT_PATTERN, "N", real_component_name)
+        else:
+            var_value = variables.get(var, "unresolved")
+            real_component_name = re.sub(VAR_PATTERN, var_value, real_component_name)
 
-        return TerraformResource(name=real_component_name,
-                                 terraform_resource_name=component.terraform_resource_name,
-                                 resource_type=component.resource_type)
-    return component
+    return TerraformResource(name=real_component_name,
+                             terraform_resource_name=component.terraform_resource_name,
+                             resource_type=component.resource_type)
 
 
 def resolve(hcl_raw_list: list[dict[str, Any]]) -> list[TerraformResource]:

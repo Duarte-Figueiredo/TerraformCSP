@@ -13,6 +13,10 @@ GITHUB_RESOURCE = "github"
 logger = logging.getLogger("download_manager")
 
 
+def _is_relevant_file_to_download_in_folder(remote_resource: RemoteResource) -> bool:
+    return not remote_resource.is_directory and remote_resource.name.endswith(".tf")
+
+
 def create_required_folders(file_path: str):
     logging.info(f"creating folder path {file_path}")
     if not os.path.exists(file_path):
@@ -33,6 +37,8 @@ def download_folder(remote_resource: RemoteResource, output_path: str) -> List[R
         github_r: GitHubReference = remote_resource.remote_reference
         r_resources: List[RemoteResource] = github_manager.list_files_in_remote_folder(remote_resource,
                                                                                        github_r)
+
+        r_resources = [res for res in r_resources if _is_relevant_file_to_download_in_folder(res)]
 
         resources: list[list[Resource]] = list(
             map(lambda rr: download_file_or_folder(rr, output_path), r_resources))

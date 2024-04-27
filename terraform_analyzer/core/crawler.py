@@ -21,24 +21,25 @@ def grab_relevant_tf_files_from_root_folder(root_remote_resource: RemoteResource
 
 
 def extract_dependency_reference(dependency: str, rr: RemoteReference, next_file: RemoteResource) -> RemoteResource:
+    source_url: str
     if dependency.startswith("."):
         # is local resource
         if isinstance(rr, GitHubReference):
             return github_manager.dependency_builder(dependency, next_file, rr)
         else:
             raise RuntimeError(f"I don't know how to download {type(rr)}")
-
-    source_url = terraform_registry.get_source_code(dependency)
-
-    # is remote resource
+    elif dependency.startswith("git::") or dependency.startswith("http"):
+        source_url = dependency
+    else:
+        source_url = terraform_registry.get_source_code(dependency)
 
     reference: RemoteReference = remote_reference_resolution.resolve(source_url)
 
     if isinstance(reference, GitHubReference):
         return RemoteResource(remote_reference=reference,
-                              is_directory=False,
+                              is_directory=True,
                               relative_path=(),
-                              name="main.tf")
+                              name="")
 
     raise RuntimeError(f"I don't know how to handle {type(rr)}")
 
@@ -55,7 +56,10 @@ def crawl_download(root_remote_resource: RemoteResource, output_folder_path: str
         next_file: RemoteResource = files_to_parse.pop()
 
         if next_file in files_parsed:
-            raise RuntimeError(f"Detected circular dependency with '{next_file}'")
+            logger.warning(f"'{next_file.name}' has already been processed")
+            continue
+
+        files_parsed.add(next_file)
 
         resources: List[Resource] = download_manager.download_file_or_folder(next_file,
                                                                              output_folder_path)

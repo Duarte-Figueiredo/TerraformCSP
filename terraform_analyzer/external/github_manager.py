@@ -55,6 +55,22 @@ def _map_github_content_file_to_remote_resource(github_content: ContentFile,
                           name=github_content.name)
 
 
+def get_branch_or_tag_commit_hash(repo_id: str, branch_or_tag_name: str) -> Optional[str]:
+    repo: Repository = github_client.get_repo(repo_id)
+
+    try:
+        branch: Branch = repo.get_branch(branch_or_tag_name)
+        return branch.commit.sha
+    except:
+        pass
+
+    for tag in repo.get_tags():
+        if tag.name == branch_or_tag_name:
+            return tag.commit.sha
+
+    raise RuntimeError(f"Failed to track tag or branch name '{branch_or_tag_name}' in {repo_id}")
+
+
 def repo_project_extract(github_project_url: str) -> GitHubReference:
     url_path = re.sub(DOT_COM_REGEX, "", github_project_url)
     (author, project) = url_path.split("/")
@@ -111,8 +127,18 @@ def is_resource_link_type_a_dir(resource_path: str, ghr: GitHubReference) -> boo
 
 def dependency_builder(dependency: str, parent_rr: RemoteResource, ghr: GitHubReference) -> RemoteResource:
     path = parent_rr.get_remote_abs_path_with_name() if parent_rr.is_directory else parent_rr.get_remote_abs_path()
+
     relative_path: tuple[str, ...] = parent_rr.relative_path + (
         parent_rr.name,) if parent_rr.is_directory else parent_rr.relative_path
+
+    backtrack_count: int = dependency.count("../")
+
+    if backtrack_count > 0:
+        path_list = path.split("/")
+        path = path_list[:-backtrack_count:]
+
+    dependency = dependency.removeprefix('./')
+
     resource_path = f"{path}/{dependency}"
 
     is_dir = is_resource_link_type_a_dir(resource_path, ghr)

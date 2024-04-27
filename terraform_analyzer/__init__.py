@@ -60,7 +60,13 @@ if __name__ == '__main__':
     #                        github_project="outserv",
     #                        github_commit_hash="502e611e5e12c502f3e96ab1f09744a096900ab9",
     #                        tf_root_parent_folder_path="contrib/config/terraform/kubernetes")
-    run_terraform_analyzer(github_author="BSBiradar",
-                           github_project="terraform-eks",
-                           github_commit_hash="67a5a9fce6a72e1552fa526690530f40f1f35aae",
-                           tf_root_parent_folder_path="eks")
+    run_terraform_analyzer(github_author="terraform-aws-modules",
+                           github_project="terraform-aws-eks",
+                           github_commit_hash="afadb14e44d1cdbd852dbae815be377c4034e82a",
+                           tf_root_parent_folder_path="")
+    # run_terraform_analyzer(github_author="kumarkartikmk57",
+    #                        github_project="terraform_modules",
+    #                        github_commit_hash="917a22d76d6ff6ee865d1291eba71538165cde74",
+    #                        tf_root_parent_folder_path="")
+
+# kumarkartikmk57/terraform_modules this blows when pa

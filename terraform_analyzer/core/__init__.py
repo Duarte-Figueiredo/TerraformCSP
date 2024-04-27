@@ -49,7 +49,9 @@ class RemoteResource(BaseModel):
             return f"{self.remote_reference.path}/{self.get_relative_path()}"
 
     def get_remote_abs_path_with_name(self) -> str:
-        return f"{self.remote_reference.path}/{self.get_relative_path_with_name()}"
+        if self.remote_reference.path:
+            return f"{self.remote_reference.path}/{self.get_relative_path_with_name()}"
+        return self.get_relative_path_with_name()
 
     def __str__(self) -> str:
         return self.get_remote_abs_path_with_name()
