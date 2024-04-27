@@ -6,7 +6,7 @@ from beanie.odm.operators.update.general import Set, Unset
 from github import Repository, Branch
 
 import terraform_analyzer
-from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN
+from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN, OUTPUT_FOLDER
 from terraform_analyzer.external import github_client
 
 PAGE_SIZE = 500
@@ -15,7 +15,7 @@ QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': Fals
 # QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': True}}
 RESET_QUERY = {'downloaded': {'$exists': True}}
 
-OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/output"
+# OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/output"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("repo_tf_fetcher")
