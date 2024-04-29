@@ -1,11 +1,12 @@
 import logging
-from typing import Set, Any
+from typing import Set, Any, Optional
 
 import hcl2
 from lark import LarkError
 
 from terraform_analyzer.core import Resource, LocalResource
 from terraform_analyzer.core.hcl import CLOUD_RESOURCE_TYPE_VALUES
+from terraform_analyzer.core.hcl.timeout_utils import timeout
 
 MODULE = "module"
 MODULE_SOURCE = "source"
@@ -72,15 +73,27 @@ def extract_relevant_resources_from_dict(hcl_dict: dict, path_context: str) -> l
     return relevant_resources
 
 
-def list_hcl_dependencies(resource: Resource) -> set[str]:
-    hcl_dict: dict
-    with open(resource.local_resource.parent_dir, 'r') as file:
+@timeout(5)
+def load_with_timeout(local_resource: LocalResource) -> Optional[dict]:
+    with open(local_resource.full_path, 'r') as file:
         try:
-            hcl_dict = hcl2.load(file)
+            return hcl2.load(file)
         except LarkError as e:
-            logger.warning(f"Failed to parse '{resource.remote_resource.get_relative_path_with_name()}'")
-            logger.debug(f"Failed to parse '{resource.remote_resource.get_relative_path_with_name()}'", exc_info=e)
-            return set()
+            logger.warning(f"Failed to parse '{local_resource.get_full_path()}'")
+            logger.debug(f"Failed to parse '{local_resource.get_full_path()}'", exc_info=e)
+    return None
+
+
+def list_hcl_dependencies(resource: Resource) -> set[str]:
+    hcl_dict: Optional[dict] = None
+
+    try:
+        hcl_dict = load_with_timeout(resource.local_resource)
+    except TimeoutError:
+        logger.warning(f"Timed out while parsing {resource.local_resource.get_full_path()}")
+
+    if not hcl_dict:
+        return set()
 
     detected_dependencies: set[str] = hcl_dependencies(hcl_dict)
 
@@ -88,15 +101,15 @@ def list_hcl_dependencies(resource: Resource) -> set[str]:
 
 
 def list_hcl_resources(resource: LocalResource) -> list[dict[str, Any]]:
-    hcl_dict: dict
+    hcl_dict: Optional[dict] = None
 
-    with open(resource.get_full_path(), 'r') as file:
-        try:
-            hcl_dict = hcl2.load(file)
-        except LarkError as e:
-            logger.warning(f"Failed to parse '{resource.get_full_path()}'")
-            logger.debug(f"Failed to parse '{resource.get_full_path()}'", exc_info=e)
-            return []
+    try:
+        hcl_dict = load_with_timeout(resource.local_resource)
+    except TimeoutError:
+        logger.warning(f"Timed out while parsing {resource.get_full_path()}")
+
+    if not hcl_dict:
+        return []
 
     relevant_resources = extract_relevant_resources_from_dict(hcl_dict, resource.get_full_path())
 
