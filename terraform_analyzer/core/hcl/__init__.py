@@ -31,6 +31,13 @@ class CloudResourceType(str, Enum):
     KUBERNETES_SERVICE = "kubernetes_service"
     KUBERNETES_POD = "kubernetes_pod"
 
+    DYNAMO_DB = "aws_dynamodb_table"
+    # RDS_DB = "aws_db_instance"
+
+    # permissions
+    AWS_LAMBDA_PERMISSION = "aws_lambda_permission"
+    # AWS_IAM_POLICY = "aws_iam_policy" :´(
+
 
 # TODO missing POD resource / apigateway / database
 

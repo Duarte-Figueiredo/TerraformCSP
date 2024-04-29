@@ -4,7 +4,7 @@ from typing import Any
 
 from terraform_analyzer.core import LocalResource
 from terraform_analyzer.core.hcl import hcl_file_parser, hcl_resolver
-from terraform_analyzer.core.hcl.hcl_resolver import TerraformResource
+from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import TerraformResource
 
 logger = logging.getLogger("hcl_project_parser")
 
@@ -14,7 +14,7 @@ def _list_local_resource(path: str) -> [LocalResource]:
     for name in os.listdir(path):
         is_dir = os.path.isdir(f"{path}/{name}")
 
-        tmp.append(LocalResource(parent_dir=path,
+        tmp.append(LocalResource(full_path=path,
                                  name=name,
                                  is_directory=is_dir))
 
@@ -42,6 +42,6 @@ def parse_project(main: LocalResource) -> list[TerraformResource]:
             tmp: list[dict[str, Any]] = hcl_file_parser.list_hcl_resources(local_res)
             hcl_resources.extend(tmp)
 
-    logger.info(f"Finish crawling successfully tf project at {main_folder.parent_dir}")
+    logger.info(f"Finish crawling successfully tf project at {main_folder.full_path}")
 
     return hcl_resolver.resolve(hcl_resources)

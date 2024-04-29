@@ -62,19 +62,19 @@ class RemoteResource(BaseModel):
 
 class LocalResource(BaseModel):
     # local_path contains name
-    parent_dir: str
+    full_path: str
     name: str
     is_directory: bool
 
     def get_parent_folder(self):
-        parent_local_path = os.path.dirname(self.parent_dir)
-        parent_name = os.path.basename(self.parent_dir)
-        return LocalResource(parent_dir=parent_local_path,
+        parent_local_path = os.path.dirname(self.full_path)
+        parent_name = os.path.basename(self.full_path)
+        return LocalResource(full_path=parent_local_path,
                              name=parent_name,
                              is_directory=True)
 
     def get_full_path(self):
-        return f"{self.parent_dir}/{self.name}"
+        return self.full_path
 
     class Config:
         frozen = True

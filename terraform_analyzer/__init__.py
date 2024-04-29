@@ -3,7 +3,7 @@ import os
 
 from terraform_analyzer.core import RemoteResource, GitHubReference, LocalResource, crawler
 from terraform_analyzer.core.hcl import hcl_project_parser
-from terraform_analyzer.core.hcl.hcl_resolver import TerraformResource
+from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import TerraformResource
 
 RESOURCE_OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/resources"
 HCL_RAW_OUTPUT = "/home/duarte/Documents/Personal/Code/TerraformCSP/hcl_output_raw.json"
@@ -46,7 +46,7 @@ def run_terraform_analyzer(github_author: str,
                        tf_main_file_name=tf_main_file_name,
                        output_folder=RESOURCE_OUTPUT_FOLDER)
 
-    main_resource = LocalResource(parent_dir=RESOURCE_OUTPUT_FOLDER,
+    main_resource = LocalResource(full_path=RESOURCE_OUTPUT_FOLDER,
                                   name=tf_main_file_name,
                                   is_directory=False)
 
