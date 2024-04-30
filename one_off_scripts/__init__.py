@@ -17,7 +17,7 @@ OUTPUT_FOLDER = "/output"
 
 MONGO_QUERY = os.environ.get('QUERY', None)
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.WARNING)
 
 
 async def initialize_db():
