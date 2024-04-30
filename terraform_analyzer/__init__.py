@@ -3,7 +3,8 @@ import os
 
 from terraform_analyzer.core import RemoteResource, GitHubReference, LocalResource, crawler
 from terraform_analyzer.core.hcl import hcl_project_parser
-from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import TerraformResource
+from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
+from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import TerraformComputeResource
 
 RESOURCE_OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/resources"
 HCL_RAW_OUTPUT = "/home/duarte/Documents/Personal/Code/TerraformCSP/hcl_output_raw.json"

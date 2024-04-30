@@ -11,6 +11,7 @@ from terraform_analyzer.core.hcl.timeout_utils import timeout
 MODULE = "module"
 MODULE_SOURCE = "source"
 VARIABLE = "variable"
+CONDITION = "condition"
 TF_SUFFIX = ".tf"
 TF_MAIN_FILE_NAME = "main.tf"
 
@@ -49,6 +50,8 @@ def extract_relevant_resources_from_dict(hcl_dict: dict, path_context: str) -> l
             relevant_resources.append({key: hcl_dict[key]})
         elif key == VARIABLE:
             relevant_resources.append({context_key: hcl_dict[key]})
+        elif key == CONDITION:
+            continue
         else:
             value = hcl_dict[key]
 
@@ -104,7 +107,7 @@ def list_hcl_resources(resource: LocalResource) -> list[dict[str, Any]]:
     hcl_dict: Optional[dict] = None
 
     try:
-        hcl_dict = load_with_timeout(resource.local_resource)
+        hcl_dict = load_with_timeout(resource)
     except TimeoutError:
         logger.warning(f"Timed out while parsing {resource.get_full_path()}")
 

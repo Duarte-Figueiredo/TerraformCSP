@@ -1,116 +1,122 @@
 from typing import Type
 
-from pydantic import BaseModel
-
 from terraform_analyzer.core.hcl import CloudResourceType
+from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
 
 
-class TerraformBaseResource(BaseModel):
-
-    @staticmethod
-    def get_terraform_name() -> str:
-        raise RuntimeError("Not implemented")
-
-
-class TerraformResource(TerraformBaseResource):
+class TerraformComputeResource(TerraformResource):
     name: str
     terraform_resource_name: str
     resource_type: str
 
 
-class AwsLambda(TerraformResource):
+class AwsLambda(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.AWS_LAMBDA.value
 
 
-class AwsCluster(TerraformResource):
+class AwsCluster(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.AWS_CLUSTER.value
 
 
-class AwsInstance(TerraformResource):
+class AwsInstance(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.AWS_INSTANCE.value
 
 
-class GCloudFunction(TerraformResource):
+class GCloudFunction(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.GCLOUD_FUNCTION.value
 
 
-class GCloudVmWareCluster(TerraformResource):
+class GCloudVmWareCluster(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.GCLOUD_VMWARE_CLUSTER.value
 
 
-class GCloudInstance(TerraformResource):
+class GCloudInstance(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.GCLOUD_INSTANCE.value
 
 
-class AzureFunctionLinux(TerraformResource):
+class AzureFunctionLinux(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.AZURE_FUNCTION_LINUX.value
 
 
-class AzureFunctionWindows(TerraformResource):
+class AzureFunctionWindows(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.AZURE_FUNCTION_WINDOWS.value
 
 
-class AzureCluster(TerraformResource):
+class AzureCluster(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.AZURE_CLUSTER.value
 
 
-class AzureInstance(TerraformResource):
+class AzureInstance(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.AZURE_INSTANCE.value
 
 
-class KubernetesService(TerraformResource):
+class KubernetesService(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.KUBERNETES_SERVICE.value
 
 
-class KubernetesPod(TerraformResource):
+class KubernetesPod(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.KUBERNETES_POD.value
 
 
-class DynamoDb(TerraformResource):
+class DynamoDb(TerraformComputeResource):
 
     @staticmethod
     def get_terraform_name() -> str:
         return CloudResourceType.DYNAMO_DB.value
 
 
+class SQS(TerraformComputeResource):
+
+    @staticmethod
+    def get_terraform_name() -> str:
+        return CloudResourceType.SQS.value
+
+
+class SNS(TerraformComputeResource):
+
+    @staticmethod
+    def get_terraform_name() -> str:
+        return CloudResourceType.SNS.value
+
+
 # add new resources here
 
 
-ALL_TERRAFORM_RESOURCES: dict[str, Type[TerraformResource]] = {x.get_terraform_name(): x for x in
-                                                               TerraformResource.__subclasses__()}
+ALL_TERRAFORM_RESOURCES: dict[str, Type[TerraformComputeResource]] = {x.get_terraform_name(): x for x in
+                                                                      TerraformComputeResource.__subclasses__()}

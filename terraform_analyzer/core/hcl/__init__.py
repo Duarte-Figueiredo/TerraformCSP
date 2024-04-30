@@ -34,6 +34,9 @@ class CloudResourceType(str, Enum):
     DYNAMO_DB = "aws_dynamodb_table"
     # RDS_DB = "aws_db_instance"
 
+    SQS = "aws_sqs_queue"
+    SNS = "aws_sns_topic"
+
     # permissions
     AWS_LAMBDA_PERMISSION = "aws_lambda_permission"
     # AWS_IAM_POLICY = "aws_iam_policy" :´(

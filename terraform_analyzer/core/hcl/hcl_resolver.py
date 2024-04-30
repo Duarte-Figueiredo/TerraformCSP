@@ -1,11 +1,11 @@
 # resolves the variables
 import os
 import re
-from typing import Union, Any
+from typing import Union, Any, Optional
 
-from terraform_analyzer.core.hcl.hcl_obj.hcl_permissions import TerraformPermission, \
-    ALL_TERRAFORM_PERMISSIONS
-from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import TerraformResource, ALL_TERRAFORM_RESOURCES
+from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
+from terraform_analyzer.core.hcl.hcl_obj.hcl_permissions import ALL_TERRAFORM_PERMISSIONS
+from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import ALL_TERRAFORM_RESOURCES
 
 RESOURCE = "_resource"
 VARIABLE = "_variable"
@@ -62,7 +62,7 @@ def _extract_name_from_dict(obj: dict) -> str:
             if NAME in nested_obj:
                 return nested_obj[NAME]
 
-    return "unknown"
+    return "unnamed"
 
 
 def _get_resource_name_and_nested_obj(d: dict[str, dict[str, any]]) -> dict[str, any]:
@@ -74,7 +74,7 @@ def _get_resource_name_and_nested_obj(d: dict[str, dict[str, any]]) -> dict[str,
     return {"terraform_resource_name": terraform_resource_name, **d[terraform_resource_name]}
 
 
-def _extract_component_from_dict(d: dict) -> Union[TerraformResource, TerraformPermission]:
+def _extract_component_from_dict(d: dict) -> Optional[TerraformResource]:
     for key, obj in d.items():
         resource_type: str = key
 
@@ -101,10 +101,15 @@ def _extract_component_from_dict(d: dict) -> Union[TerraformResource, TerraformP
             return clz(name=name,
                        terraform_resource_name=terraform_resource_name,
                        resource_type=resource_type)
+        else:
+            raise RuntimeError(
+                f"Unable to resolve '{resource_type}', please create a terraform permission or resource class")
+
+    raise RuntimeError(f"Empty component not allowed")
 
 
-def _extract_component_from_list(lis: list[any]) -> [Union[TerraformResource, TerraformPermission]]:
-    components: [Union[TerraformResource, TerraformPermission]] = []
+def _extract_component_from_list(lis: list[any]) -> [TerraformResource]:
+    components: [TerraformResource] = []
     for item in lis:
         if type(item) is list:
             item: list
@@ -118,8 +123,7 @@ def _extract_component_from_list(lis: list[any]) -> [Union[TerraformResource, Te
     return components
 
 
-def _resolve_component(component: Union[TerraformResource, TerraformPermission], variables: dict[str, str]) -> Union[
-    TerraformResource, TerraformPermission]:
+def _resolve_component(component: TerraformResource, variables: dict[str, str]) -> TerraformResource:
     unresolved_dict = component.dict()
     resolved_dict = {}
 
@@ -134,8 +138,10 @@ def _resolve_component(component: Union[TerraformResource, TerraformPermission],
             if "index" in var:
                 variable_value = re.sub(COUNT_PATTERN, "N", variable_value)
             else:
-                var_value = variables.get(var, "unresolved")
-                variable_value = re.sub(VAR_PATTERN, var_value, variable_value)
+                var_value = variables.get(var)
+
+                if var_value:
+                    variable_value = re.sub(VAR_PATTERN, var_value, variable_value)
 
         resolved_dict[key] = variable_value
 
@@ -164,10 +170,12 @@ def resolve(hcl_raw_list: list[dict[str, Any]]) -> list[TerraformResource]:
                 value = hcl_raw[key]
 
                 for resource in value:
-                    new_comps: list[Union[TerraformResource, TerraformPermission]] = _extract_component_from_list(
+                    new_comps: list[Optional[TerraformResource]] = _extract_component_from_list(
                         resource)
 
                     for unresolved_comp in new_comps:
+                        if unresolved_comp is None:
+                            continue
                         resolved_comp = _resolve_component(unresolved_comp, variables)
                         hcl_resolved_list.append(resolved_comp)
 

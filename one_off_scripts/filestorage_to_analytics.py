@@ -1,16 +1,34 @@
 import logging
 import os
 import subprocess
-# from one_off_scripts import OUTPUT_FOLDER
 from typing import Optional
 
-from terraform_analyzer import LocalResource, TerraformResource
+from pydantic import BaseModel
+
+from one_off_scripts import OUTPUT_FOLDER
+from terraform_analyzer import LocalResource
 from terraform_analyzer.core.hcl import hcl_project_parser
+from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
 
 OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/output"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("repo_tf_fetcher")
+
+
+class RepoAnalytics(BaseModel):
+    total_file_count: int
+    repo_id: str
+    num_of_resources: int
+    type_of_resources: set[str]
+    terraform_resources: [TerraformResource]
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __str__(self) -> str:
+        return f"repo_id={self.repo_id} num_resource={self.num_of_resources} types={self.type_of_resources} " \
+               f"file_count={self.total_file_count} "
 
 
 def get_label_names() -> {str}:
@@ -62,38 +80,66 @@ def get_root_main_path(project_path: str) -> Optional[str]:
     return root_main
 
 
+def analyze_repo(repo_id: str) -> bool:
+    project_path = f"{OUTPUT_FOLDER}/{repo_id}"
+    file_count: int = get_file_count(project_path)
+
+    root_main_path = get_root_main_path(project_path)
+
+    if not root_main_path:
+        # https://github.com/mbrydak/glowing-couscous/tree/main/task2/terraform/net
+        # https://github.com/CMS-Enterprise/batcave-tf-eso
+        # https://github.com/aspaceincloud/IAC/blob/master/env/dev/main.tf
+
+        logger.warning(f"Failed to find {repo_id} 'main.tf' file")
+        return
+
+    name = os.path.basename(root_main_path)
+
+    main_resource = LocalResource(full_path=root_main_path,
+                                  name=name,
+                                  is_directory=False)
+
+    component_list: list[TerraformResource] = hcl_project_parser.parse_project(main_resource)
+
+    if len(component_list) > 2:
+        repo_analytics = RepoAnalytics(total_file_count=file_count,
+                                       repo_id=repo_id,
+                                       num_of_resources=len(component_list),
+                                       type_of_resources={x.__class__.__name__ for x in component_list},
+                                       terraform_resources=component_list)
+
+        print(f"{repo_analytics}")
+        for component in component_list:
+            print(f"\t\t{component.get_terraform_name()}: {component}")
+
+        return True
+    return False
+
+
 def main():
     count = 0
-    for author_name in os.listdir(OUTPUT_FOLDER):
+    repo_list = os.listdir(OUTPUT_FOLDER)
+    repo_count = len(repo_list)
+
+    skiped_repos = 0
+    unskiped_repos = 0
+    for author_name in repo_list:
         author_path = f"{OUTPUT_FOLDER}/{author_name}"
         repo_id: str = get_repo_id(author_path)
 
-        project_path = f"{OUTPUT_FOLDER}/{repo_id}"
-        file_count: int = get_file_count(project_path)
+        if analyze_repo(repo_id):
+            unskiped_repos += 1
+        else:
+            skiped_repos += 1
 
-        root_main_path = get_root_main_path(project_path)
-
-        if not root_main_path:
-            # https://github.com/mbrydak/glowing-couscous/tree/main/task2/terraform/net
-            # https://github.com/CMS-Enterprise/batcave-tf-eso
-            # https://github.com/aspaceincloud/IAC/blob/master/env/dev/main.tf
-
-            logger.warning(f"Failed to find {repo_id} 'main.tf' file")
-            continue
-
-        parent_dir = os.path.dirname(root_main_path)
-        name = os.path.basename(root_main_path)
-
-        main_resource = LocalResource(parent_dir=parent_dir,
-                                      name=name,
-                                      is_directory=False)
-
-        component_list: list[TerraformResource] = hcl_project_parser.parse_project(main_resource)
-
-        if component_list:
-            print(f"{repo_id}:\n\t{file_count}\n\t{root_main_path}\n\t{component_list}")
         count += 1
-    print(f"count={count}")
+
+        if count % 10 == 0:
+            per = "{:.2f}".format(count / repo_count * 100)
+            print(f"{per}%")
+
+    print(f"count={count}\nunskiped_repos={unskiped_repos}\nskiped_repos={skiped_repos}")
 
 
 if __name__ == '__main__':

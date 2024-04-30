@@ -1,16 +1,11 @@
 from typing import Optional, Type
 
-from pydantic import BaseModel
-
 from terraform_analyzer.core.hcl import CloudResourceType
+from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
 
 
-class TerraformPermission(BaseModel):
+class TerraformPermission(TerraformResource):
     terraform_resource_name: str
-
-    @staticmethod
-    def get_terraform_name() -> str:
-        raise RuntimeError("Not implemented")
 
     def get_source(self) -> str:
         raise RuntimeError("Not implemented")
@@ -37,4 +32,4 @@ class AwsLambdaTerraformPermission(TerraformPermission):
 
 
 ALL_TERRAFORM_PERMISSIONS: dict[str, Type[TerraformPermission]] = {x.get_terraform_name(): x for x in
-                                                                   [AwsLambdaTerraformPermission]}
+                                                                   TerraformPermission.__subclasses__()}

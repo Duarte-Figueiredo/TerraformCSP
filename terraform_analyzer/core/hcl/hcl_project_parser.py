@@ -4,7 +4,7 @@ from typing import Any
 
 from terraform_analyzer.core import LocalResource
 from terraform_analyzer.core.hcl import hcl_file_parser, hcl_resolver
-from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import TerraformResource
+from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
 
 logger = logging.getLogger("hcl_project_parser")
 
@@ -12,9 +12,10 @@ logger = logging.getLogger("hcl_project_parser")
 def _list_local_resource(path: str) -> [LocalResource]:
     tmp: [LocalResource] = []
     for name in os.listdir(path):
-        is_dir = os.path.isdir(f"{path}/{name}")
+        full_path = f"{path}/{name}"
+        is_dir = os.path.isdir(full_path)
 
-        tmp.append(LocalResource(full_path=path,
+        tmp.append(LocalResource(full_path=full_path,
                                  name=name,
                                  is_directory=is_dir))
 
