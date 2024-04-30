@@ -9,7 +9,6 @@ from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import TerraformComputeRe
 RESOURCE_OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/resources"
 HCL_RAW_OUTPUT = "/home/duarte/Documents/Personal/Code/TerraformCSP/hcl_output_raw.json"
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("terraform_analyzer/__init__")
 
 

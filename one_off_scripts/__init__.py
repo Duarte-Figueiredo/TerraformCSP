@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import date, datetime
 from typing import Optional, List
@@ -12,6 +13,11 @@ DRY_RUN: bool = os.environ.get('DRY_RUN', "True").lower() == 'true'
 
 MONGO_DATABASE_URL = f"mongodb://{MONGO_DB_USER}:{MONGO_DB_PASS}@{MONGO_DB_URL}"
 OUTPUT_FOLDER = "/output"
+
+
+MONGO_QUERY = os.environ.get('QUERY', None)
+
+logging.basicConfig(level=logging.ERROR)
 
 
 async def initialize_db():

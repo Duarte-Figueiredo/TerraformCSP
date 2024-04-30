@@ -1,7 +1,10 @@
+import logging
 import os
 from typing import Tuple
 
 from pydantic import BaseModel
+
+logging.basicConfig(level=logging.INFO)
 
 
 class RemoteReference(BaseModel):

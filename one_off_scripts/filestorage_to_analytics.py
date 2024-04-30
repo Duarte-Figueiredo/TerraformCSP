@@ -10,9 +10,8 @@ from terraform_analyzer import LocalResource
 from terraform_analyzer.core.hcl import hcl_project_parser
 from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
 
-OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/output"
+# OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/output"
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("repo_tf_fetcher")
 
 
@@ -92,7 +91,7 @@ def analyze_repo(repo_id: str) -> bool:
         # https://github.com/aspaceincloud/IAC/blob/master/env/dev/main.tf
 
         logger.warning(f"Failed to find {repo_id} 'main.tf' file")
-        return
+        return False
 
     name = os.path.basename(root_main_path)
 

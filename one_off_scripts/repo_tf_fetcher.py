@@ -6,19 +6,22 @@ from beanie.odm.operators.update.general import Set, Unset
 from github import Repository, Branch
 
 import terraform_analyzer
-from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN, OUTPUT_FOLDER
+from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN, OUTPUT_FOLDER, MONGO_QUERY
 from terraform_analyzer.external import github_client
 
 PAGE_SIZE = 500
 
-QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}
-# QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': True}}
+logger = logging.getLogger("repo_tf_fetcher")
+
+if not MONGO_QUERY:
+    DEFAULT_QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}
+    logger.warning(f"QUERY env not set, falling back to '{DEFAULT_QUERY}'")
+    MONGO_QUERY = DEFAULT_QUERY
+
 RESET_QUERY = {'downloaded': {'$exists': True}}
 
-# OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/output"
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("repo_tf_fetcher")
+# OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/output"
 
 
 class AmbiguousRootMain(Exception):
@@ -100,7 +103,7 @@ async def main():
     while True:
         logger.info(f"Processed {index}")
 
-        results = await GithubSearchResult.find(QUERY) \
+        results = await GithubSearchResult.find(MONGO_QUERY) \
             .skip(index) \
             .limit(PAGE_SIZE) \
             .to_list()
@@ -111,9 +114,8 @@ async def main():
             await fetch_repo(result)
 
         if not results:
+            logger.info("Finished")
             break
-
-        # index += PAGE_SIZE
 
 
 async def reset_downloaded():

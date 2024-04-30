@@ -7,20 +7,20 @@ from github import Repository
 from github.ContentFile import ContentFile
 from github.PaginatedList import PaginatedList
 
-from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN
+from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN, MONGO_QUERY
 from terraform_analyzer.external import github_client
 from terraform_analyzer.external.github_manager import GithubFileType
 
-logger = logging.getLogger("mongo_git_fetcher")
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("repo_main_fetcher")
+# logging.basicConfig(level=logging.ERROR)
 
 FILE_SEARCH_NAME = "main.tf"
 PAGE_SIZE = 50
 
-QUERY = {'$or': [{'downloaded': False}, {'downloaded': {'$exists': False}}]}
-
-
-# QUERY = {'main_tf': {'$exists': False}}
+if not MONGO_QUERY:
+    DEFAULT_QUERY = {'$or': [{'downloaded': False}, {'downloaded': {'$exists': False}}]}
+    logger.warning(f"QUERY env not set, falling back to '{DEFAULT_QUERY}'")
+    MONGO_QUERY = DEFAULT_QUERY
 
 
 def find_github_main_root_tf_bfs(repo_name: str) -> List[ContentFile]:
@@ -97,7 +97,7 @@ async def main():
     index = 0
 
     while True:
-        results: [GithubSearchResult] = await GithubSearchResult.find(QUERY) \
+        results: [GithubSearchResult] = await GithubSearchResult.find(MONGO_QUERY) \
             .skip(index) \
             .limit(PAGE_SIZE) \
             .to_list()
@@ -113,6 +113,7 @@ async def main():
             logger.info(f"{result.id}:{mains}")
 
         if not results:
+            logger.info("Finished")
             break
         index += PAGE_SIZE
 
