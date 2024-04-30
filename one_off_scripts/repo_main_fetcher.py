@@ -97,7 +97,9 @@ async def main():
     index = 0
 
     while True:
+        # noinspection PyTypeChecker,PyUnresolvedReferences
         results: [GithubSearchResult] = await GithubSearchResult.find(MONGO_QUERY) \
+            .sort(-GithubSearchResult.star_gazers, -GithubSearchResult.last_pushed_at, -GithubSearchResult.created_at) \
             .skip(index) \
             .limit(PAGE_SIZE) \
             .to_list()
