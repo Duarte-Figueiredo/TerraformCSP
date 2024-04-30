@@ -18,8 +18,7 @@ FILE_SEARCH_NAME = "main.tf"
 PAGE_SIZE = 50
 
 if not MONGO_QUERY:
-    # DEFAULT_QUERY = {'$or': [{'downloaded': False}, {'downloaded': {'$exists': False}}]}
-    DEFAULT_QUERY = {'downloaded': {'$exists': False}}
+    DEFAULT_QUERY = {'main_tf': {'$exists': False}}
     logger.warning(f"QUERY env not set, falling back to '{DEFAULT_QUERY}'")
     MONGO_QUERY = DEFAULT_QUERY
 
