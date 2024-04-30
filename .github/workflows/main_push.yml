@@ -6,7 +6,7 @@
        - master
 
  jobs:
-   2_repo_main_fetcher:
+   repo_main_fetcher:
      runs-on: ubuntu-latest
      permissions:
        contents: read
@@ -35,7 +35,7 @@
            push: true
            tags: ghcr.io/duarte-figueiredo/terraformcsp/repo_main_fetcher:latest
 
-   3_repo_tf_fetcher:
+   repo_tf_fetcher:
      runs-on: ubuntu-latest
      permissions:
        contents: read
