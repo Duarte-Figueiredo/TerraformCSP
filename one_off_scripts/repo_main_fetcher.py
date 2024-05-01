@@ -55,6 +55,8 @@ def find_github_main_root_tf_bfs(repo_name: str) -> List[ContentFile]:
             if content.name == FILE_SEARCH_NAME:
                 mains.append(content)
                 main_tf_found = True
+        elif content.type == GithubFileType.SYMLINK.value:
+            continue
         else:
             raise RuntimeError(f"Unrecognized github file type '{content.type}'")
 
