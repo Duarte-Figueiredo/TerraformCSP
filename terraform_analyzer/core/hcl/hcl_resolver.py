@@ -1,7 +1,7 @@
 # resolves the variables
 import os
 import re
-from typing import Union, Any, Optional
+from typing import Any, Optional, Union
 
 from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
 from terraform_analyzer.core.hcl.hcl_obj.hcl_permissions import ALL_TERRAFORM_PERMISSIONS
@@ -24,7 +24,7 @@ VAR_NAME_PATTERN = re.compile('\$\{(?:(?:var)|(?:count))\.([^}]*)}')
 TF_RESOURCE_NAMES: set[str] = {"name", "function_name"}
 
 
-def _load_variables(hcl_variables: list[dict[str, any]]) -> dict[str, str]:
+def _load_variables(hcl_variables: list[dict[str, any]]) -> dict[str, Union[str, int]]:
     var_name_value: dict[str, str] = {}
     for variables in hcl_variables:
         var_name: str
@@ -38,31 +38,6 @@ def _load_variables(hcl_variables: list[dict[str, any]]) -> dict[str, str]:
             var_name_value[var_name] = value
 
     return var_name_value
-
-
-def _lower_case_obj_keys(obj: dict[str, any]) -> dict[str, any]:
-    return {k.lower(): v for k, v in obj.items()}
-
-
-def _extract_name_from_dict(obj: dict) -> str:
-    nested_name_key = {METADATA, TAGS}
-    obj_lower_case_key = _lower_case_obj_keys(obj)
-
-    for key in nested_name_key:
-        if key in obj_lower_case_key:
-            nested_obj: Union[list[str], dict[str, str]] = obj_lower_case_key[key]
-
-            if isinstance(nested_obj, list):
-                nested_obj = nested_obj[0]
-            elif not isinstance(nested_obj, dict):
-                continue
-
-            nested_obj = _lower_case_obj_keys(nested_obj)
-
-            if NAME in nested_obj:
-                return nested_obj[NAME]
-
-    return "unnamed"
 
 
 def _get_resource_name_and_nested_obj(d: dict[str, dict[str, any]]) -> dict[str, any]:
@@ -85,22 +60,7 @@ def _extract_component_from_dict(d: dict) -> Optional[TerraformResource]:
             return clz(**nested_obj)
         elif resource_type in ALL_TERRAFORM_RESOURCES:
             clz = ALL_TERRAFORM_RESOURCES[resource_type]
-
-            terraform_resource_name: str = list(obj.keys())[0]
-            obj: dict[str, any] = obj[terraform_resource_name]
-
-            name_value = TF_RESOURCE_NAMES.intersection(obj.keys())
-
-            if not name_value:
-                name = _extract_name_from_dict(obj)
-            elif len(name_value) == 1:
-                name = obj[name_value.pop()]
-            else:
-                raise RuntimeError(f"Conflicting names detected '{name_value}' in '{obj.keys()}'")
-
-            return clz(name=name,
-                       terraform_resource_name=terraform_resource_name,
-                       resource_type=resource_type)
+            return clz.process_hcl(obj)
         else:
             raise RuntimeError(
                 f"Unable to resolve '{resource_type}', please create a terraform permission or resource class")
@@ -123,27 +83,37 @@ def _extract_component_from_list(lis: list[any]) -> [TerraformResource]:
     return components
 
 
-def _resolve_component(component: TerraformResource, variables: dict[str, str]) -> TerraformResource:
-    unresolved_dict = component.dict()
+def _resolve_dict(unresolved_dict: dict[str, any], variables: dict[str, Union[str, int]]) -> dict[str, any]:
     resolved_dict = {}
 
     for key, value in unresolved_dict.items():
+        # TODO deal with dicts
         if value is None:
             continue
+        elif type(value) is dict:
+            resolved_dict[key] = _resolve_dict(value, variables)
+        elif type(value) is int or type(value) is bool:
+            resolved_dict[key] = value
+        else:
+            detected_vars = VAR_NAME_PATTERN.findall(value)
 
-        detected_vars = VAR_NAME_PATTERN.findall(value)
+            variable_value = value
+            for var in detected_vars:
+                if "index" in var:
+                    variable_value = re.sub(COUNT_PATTERN, "N", variable_value)
+                else:
+                    var_value: Union[str, int, None] = variables.get(var)
 
-        variable_value = value
-        for var in detected_vars:
-            if "index" in var:
-                variable_value = re.sub(COUNT_PATTERN, "N", variable_value)
-            else:
-                var_value = variables.get(var)
+                    if var_value:
+                        variable_value = re.sub(VAR_PATTERN, str(var_value), variable_value)
 
-                if var_value:
-                    variable_value = re.sub(VAR_PATTERN, var_value, variable_value)
+            resolved_dict[key] = variable_value
 
-        resolved_dict[key] = variable_value
+    return resolved_dict
+
+
+def _resolve_component(component: TerraformResource, variables: dict[str, Union[str, int]]) -> TerraformResource:
+    resolved_dict = _resolve_dict(component.dict(), variables)
 
     return type(component)(**resolved_dict)
 
@@ -166,7 +136,8 @@ def resolve(hcl_raw_list: list[dict[str, Any]]) -> list[TerraformResource]:
             if key.endswith(RESOURCE):
                 path = os.path.dirname(key)
 
-                variables: dict[str, str] = _load_variables(hcl_variables[path]) if path in hcl_variables else {}
+                variables: dict[str, Union[str, int]] = _load_variables(
+                    hcl_variables[path]) if path in hcl_variables else {}
                 value = hcl_raw[key]
 
                 for resource in value:

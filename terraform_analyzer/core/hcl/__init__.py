@@ -31,11 +31,15 @@ class CloudResourceType(str, Enum):
     KUBERNETES_SERVICE = "kubernetes_service"
     KUBERNETES_POD = "kubernetes_pod"
 
-    DYNAMO_DB = "aws_dynamodb_table"
+    AWS_DYNAMO_DB = "aws_dynamodb_table"
     # RDS_DB = "aws_db_instance"
 
-    SQS = "aws_sqs_queue"
-    SNS = "aws_sns_topic"
+    AWS_SQS = "aws_sqs_queue"
+    AWS_SNS = "aws_sns_topic"
+
+    # gateways
+    # AWS_API_GATEWAY_REST_API = "aws_api_gateway_rest_api"
+    # AWS_API_GATEWAY_RESOURCE = "aws_api_gateway_resource"
 
     # permissions
     AWS_LAMBDA_PERMISSION = "aws_lambda_permission"

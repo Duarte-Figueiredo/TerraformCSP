@@ -8,10 +8,12 @@ from terraform_analyzer.core import Resource, LocalResource
 from terraform_analyzer.core.hcl import CLOUD_RESOURCE_TYPE_VALUES
 from terraform_analyzer.core.hcl.timeout_utils import timeout
 
+RESOURCE = "resource"
 MODULE = "module"
 MODULE_SOURCE = "source"
 VARIABLE = "variable"
 CONDITION = "condition"
+DYNAMIC = "dynamic"
 TF_SUFFIX = ".tf"
 TF_MAIN_FILE_NAME = "main.tf"
 
@@ -44,17 +46,15 @@ def extract_relevant_resources_from_dict(hcl_dict: dict, path_context: str) -> l
 
     relevant_resources = []
 
-    for key in hcl_dict.keys():
+    for key, value in hcl_dict.items():
         context_key = f"{path_context}_{key}"
         if key in CLOUD_RESOURCE_TYPE_VALUES:
-            relevant_resources.append({key: hcl_dict[key]})
-        elif key == VARIABLE:
-            relevant_resources.append({context_key: hcl_dict[key]})
-        elif key == CONDITION:
+            relevant_resources.append({key: value})
+        elif key == VARIABLE and RESOURCE not in path_context:
+            relevant_resources.append({context_key: value})
+        elif key == CONDITION or key == DYNAMIC:
             continue
         else:
-            value = hcl_dict[key]
-
             if not value:
                 continue
             elif type(value) is dict:
@@ -81,7 +81,7 @@ def load_with_timeout(local_resource: LocalResource) -> Optional[dict]:
     with open(local_resource.full_path, 'r') as file:
         try:
             return hcl2.load(file)
-        except LarkError as e:
+        except (LarkError, UnicodeError) as e:
             logger.warning(f"Failed to parse '{local_resource.get_full_path()}'")
             logger.debug(f"Failed to parse '{local_resource.get_full_path()}'", exc_info=e)
     return None

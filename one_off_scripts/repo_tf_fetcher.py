@@ -9,9 +9,10 @@ import terraform_analyzer
 from one_off_scripts import initialize_db, GithubSearchResult, DRY_RUN, OUTPUT_FOLDER, MONGO_QUERY
 from terraform_analyzer.external import github_client
 
-PAGE_SIZE = 500
+PAGE_SIZE = 50
 
 logger = logging.getLogger("repo_tf_fetcher")
+logging.basicConfig(level=logging.INFO)
 
 if not MONGO_QUERY:
     DEFAULT_QUERY = {'main_tf': {'$ne': [], '$exists': True}, 'downloaded': {'$exists': False}}

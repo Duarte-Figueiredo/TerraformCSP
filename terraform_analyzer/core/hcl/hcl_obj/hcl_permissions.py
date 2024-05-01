@@ -5,7 +5,6 @@ from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
 
 
 class TerraformPermission(TerraformResource):
-    terraform_resource_name: str
 
     def get_source(self) -> str:
         raise RuntimeError("Not implemented")
@@ -16,7 +15,7 @@ class TerraformPermission(TerraformResource):
 
 class AwsLambdaTerraformPermission(TerraformPermission):
     action: str
-    function_name: str
+    function_name: Optional[str] = None  # should be mandatory, but some repos don't have this set
     principal: str
     source_arn: Optional[str] = None
 

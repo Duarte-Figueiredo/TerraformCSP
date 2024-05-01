@@ -9,10 +9,12 @@ from one_off_scripts import OUTPUT_FOLDER
 from terraform_analyzer import LocalResource
 from terraform_analyzer.core.hcl import hcl_project_parser
 from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
-
-# OUTPUT_FOLDER = "/home/duarte/Documents/Personal/Code/TerraformCSP/output"
+from terraform_analyzer.core.hcl.hcl_obj.hcl_permissions import AwsLambdaTerraformPermission
+from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import AwsLambda, AwsDynamoDb
 
 logger = logging.getLogger("repo_tf_fetcher")
+
+WORTHY_CLASSES: set[str] = set(x.__name__ for x in [AwsLambdaTerraformPermission, AwsLambda, AwsDynamoDb])
 
 
 class RepoAnalytics(BaseModel):
@@ -22,12 +24,15 @@ class RepoAnalytics(BaseModel):
     type_of_resources: set[str]
     terraform_resources: [TerraformResource]
 
-    class Config:
-        arbitrary_types_allowed = True
+    def is_worthy(self) -> bool:
+        return WORTHY_CLASSES.issubset(self.type_of_resources)
 
     def __str__(self) -> str:
         return f"repo_id={self.repo_id} num_resource={self.num_of_resources} types={self.type_of_resources} " \
                f"file_count={self.total_file_count} "
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 def get_label_names() -> {str}:
@@ -101,18 +106,19 @@ def analyze_repo(repo_id: str) -> bool:
 
     component_list: list[TerraformResource] = hcl_project_parser.parse_project(main_resource)
 
-    if len(component_list) > 2:
-        repo_analytics = RepoAnalytics(total_file_count=file_count,
-                                       repo_id=repo_id,
-                                       num_of_resources=len(component_list),
-                                       type_of_resources={x.__class__.__name__ for x in component_list},
-                                       terraform_resources=component_list)
+    repo_analytics = RepoAnalytics(total_file_count=file_count,
+                                   repo_id=repo_id,
+                                   num_of_resources=len(component_list),
+                                   type_of_resources={x.__class__.__name__ for x in component_list},
+                                   terraform_resources=component_list)
+    if repo_analytics.is_worthy():
 
         print(f"{repo_analytics}")
         for component in component_list:
             print(f"\t\t{component.get_terraform_name()}: {component}")
 
         return True
+
     return False
 
 
@@ -127,7 +133,13 @@ def main():
         author_path = f"{OUTPUT_FOLDER}/{author_name}"
         repo_id: str = get_repo_id(author_path)
 
-        if analyze_repo(repo_id):
+        try:
+            success = analyze_repo(repo_id)
+        except Exception as e:
+            logger.error(f"Failed to analyze {repo_id}")
+            raise e
+
+        if success:
             unskiped_repos += 1
         else:
             skiped_repos += 1
@@ -143,3 +155,8 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # analyze_repo(f"CLDNT/terraform-iam-mfa-enforcement")
+    # analyze_repo('logesh81098/copy-files-from-S3-to-EFS-using-lambda')
+    # analyze_repo('psifas-org-rnd/terraform-aws-control_tower_account_factory')
+    # analyze_repo('toolforge/tf-infra-test')
+    # psifas-org-rnd/terraform-aws-control_tower_account_factory
