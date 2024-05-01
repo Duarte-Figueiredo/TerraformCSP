@@ -25,6 +25,7 @@ class GithubContextResource(BaseModel):
 class GithubFileType(str, Enum):
     DIR = 'dir'
     FILE = 'file'
+    SYMLINK = 'symlink'
 
 
 class GithubResourceResponse(BaseModel):
