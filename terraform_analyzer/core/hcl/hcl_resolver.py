@@ -1,7 +1,10 @@
 # resolves the variables
+import logging
 import os
 import re
 from typing import Any, Optional, Union
+
+from pydantic import ValidationError
 
 from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
 from terraform_analyzer.core.hcl.hcl_obj.hcl_permissions import ALL_TERRAFORM_PERMISSIONS
@@ -22,6 +25,8 @@ COUNT_PATTERN = re.compile('\$\{count\.[^}]*}')
 VAR_NAME_PATTERN = re.compile('\$\{(?:(?:var)|(?:count))\.([^}]*)}')
 
 TF_RESOURCE_NAMES: set[str] = {"name", "function_name"}
+
+logger = logging.getLogger("hcl_resolver")
 
 
 def _load_variables(hcl_variables: list[dict[str, any]]) -> dict[str, Union[str, int]]:
@@ -78,38 +83,60 @@ def _extract_component_from_list(lis: list[any]) -> [TerraformResource]:
             item: dict
             components.append(_extract_component_from_dict(item))
         else:
-            raise RuntimeError(f"I don't know how to process this '{item}'")
+            raise RuntimeError(f"I don't know how to process this '{type(item)}'")
 
     return components
+
+
+def _resolve_str(value: str, variables: dict[str, Union[str, int]]) -> str:
+    detected_vars = VAR_NAME_PATTERN.findall(value)
+
+    resolved_var = value
+    for var in detected_vars:
+        if "index" in var:
+            resolved_var = re.sub(COUNT_PATTERN, "N", resolved_var)
+        else:
+            var_value: Union[str, int, None] = variables.get(var)
+
+            if var_value:
+                resolved_var = re.sub(VAR_PATTERN, str(var_value), resolved_var)
+
+    return resolved_var
+
+
+def _resolve_list(unresolved_list: list[any], variables: dict[str, Union[str, int]]) -> list[any]:
+    if len(unresolved_list) == 0:
+        return unresolved_list
+
+    tmp: [any] = []
+    for value in unresolved_list:
+        tmp.append(_resolve_any(value, variables))
+
+    return tmp
 
 
 def _resolve_dict(unresolved_dict: dict[str, any], variables: dict[str, Union[str, int]]) -> dict[str, any]:
     resolved_dict = {}
 
     for key, value in unresolved_dict.items():
-        # TODO deal with dicts
-        if value is None:
-            continue
-        elif type(value) is dict:
-            resolved_dict[key] = _resolve_dict(value, variables)
-        elif type(value) is int or type(value) is bool:
-            resolved_dict[key] = value
-        else:
-            detected_vars = VAR_NAME_PATTERN.findall(value)
-
-            variable_value = value
-            for var in detected_vars:
-                if "index" in var:
-                    variable_value = re.sub(COUNT_PATTERN, "N", variable_value)
-                else:
-                    var_value: Union[str, int, None] = variables.get(var)
-
-                    if var_value:
-                        variable_value = re.sub(VAR_PATTERN, str(var_value), variable_value)
-
-            resolved_dict[key] = variable_value
+        resolved_dict[key] = _resolve_any(value, variables)
 
     return resolved_dict
+
+
+def _resolve_any(value: any, variables: dict[str, Union[str, int]]) -> any:
+    if value is None:
+        return value
+    elif type(value) is dict:
+        return _resolve_dict(value, variables)
+    elif type(value) is list:
+        return _resolve_list(value, variables)
+    elif type(value) is int or type(value) is bool:
+        return value
+    elif type(value) is str:
+        return _resolve_str(value, variables)
+    else:
+        raise RuntimeError(f"unable to resolve {type(value)}")
 
 
 def _resolve_component(component: TerraformResource, variables: dict[str, Union[str, int]]) -> TerraformResource:
@@ -141,8 +168,11 @@ def resolve(hcl_raw_list: list[dict[str, Any]]) -> list[TerraformResource]:
                 value = hcl_raw[key]
 
                 for resource in value:
-                    new_comps: list[Optional[TerraformResource]] = _extract_component_from_list(
-                        resource)
+                    try:
+                        new_comps: list[Optional[TerraformResource]] = _extract_component_from_list(resource)
+                    except ValidationError as e:
+                        logger.error(f"Validation error on component {resource}", exc_info=e)
+                        continue
 
                     for unresolved_comp in new_comps:
                         if unresolved_comp is None:

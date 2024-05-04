@@ -9,76 +9,57 @@ TAGS = "tags"
 NAME = "name"
 ENVIRONMENT = "environment"
 VARIABLES = "variables"
+DESCRIPTION = "description"
 
 TF_RESOURCE_NAMES: set[str] = {"name", "function_name"}
 
 
-def _lower_case_obj_keys(obj: dict[str, any]) -> dict[str, any]:
-    return {k.lower(): v for k, v in obj.items()}
-
-
-def _extract_name_from_dict(obj: dict) -> str:
-    nested_name_key = {METADATA, TAGS}
-    obj_lower_case_key = _lower_case_obj_keys(obj)
-
-    for key in nested_name_key:
-        if key in obj_lower_case_key:
-            nested_obj: Union[list[str], dict[str, str]] = obj_lower_case_key[key]
-
-            if isinstance(nested_obj, list):
-                nested_obj = nested_obj[0]
-            elif not isinstance(nested_obj, dict):
-                continue
-
-            nested_obj = _lower_case_obj_keys(nested_obj)
-
-            if NAME in nested_obj:
-                return nested_obj[NAME]
-
-    return "unnamed"
-
-
+# noinspection PyDefaultArgument
 class TerraformComputeResource(TerraformResource):
     name: Optional[str] = None
 
-    @staticmethod
-    def _extract_name(obj: dict[str, any]) -> str:
-        name_value = TF_RESOURCE_NAMES.intersection(obj.keys())
+    def get_identifiers(self, identifiers: set[Optional[str]] = set()) -> set[str]:
+        return super().get_identifiers(identifiers) | {self.name}
 
-        if not name_value:
-            return _extract_name_from_dict(obj)
-        elif len(name_value) == 1:
-            return obj[name_value.pop()]
-        else:
-            raise RuntimeError(f"Conflicting names detected '{name_value}' in '{obj.keys()}'")
-
-    # noinspection PyDefaultArgument
+    # noinspection PyDefaultArgument,PyArgumentList
     @classmethod
     def process_hcl(cls, obj: dict[str, any],
                     additional_fields: dict[str, any] = {}) -> TerraformResource:
-
         terraform_resource_name: str = list(obj.keys())[0]
         obj: dict[str, any] = obj[terraform_resource_name]
 
-        name = TerraformComputeResource._extract_name(obj)
-
-        return cls(name=name,
-                   terraform_resource_name=terraform_resource_name,
+        return cls(terraform_resource_name=terraform_resource_name,
+                   **obj,
                    **additional_fields)
 
 
+# noinspection PyDefaultArgument
 class AwsLambda(TerraformComputeResource):
+    role: Optional[str] = None
     env_variables: Optional[dict[str, Union[str, bool, int]]] = None
+
+    def get_identifiers(self, identifiers: set[Optional[str]] = set()) -> set[str]:
+        return super().get_identifiers(identifiers) | {self.role}
+
+    def get_references(self, references: set[Optional[str]] = set()) -> set[str]:
+        str_env_variables: set[str] = set(
+            filter(lambda x: x is str, self.env_variables)) if self.env_variables else set()
+        return super().get_references(references | str_env_variables)
 
     @classmethod
     def process_hcl(cls, obj: dict[str, any],
                     additional_fields: dict[str, any] = {}) -> TerraformResource:
         data = next(iter(obj.values()))
 
-        if ENVIRONMENT in data and VARIABLES in next(iter(data[ENVIRONMENT])):
-            variables: any = next(iter(data[ENVIRONMENT]))[VARIABLES]
-            if type(variables) is dict:
-                additional_fields["env_variables"] = variables
+        if ENVIRONMENT in data:
+            env = data[ENVIRONMENT]
+            if type(env) is dict:
+                if VARIABLES in env:
+                    additional_fields["env_variables"] = env[VARIABLES]
+            elif type(env) is list:
+                for item in env:
+                    if VARIABLES in item:
+                        additional_fields["env_variables"] = item[VARIABLES]
 
         return super().process_hcl(obj, additional_fields)
 
@@ -186,10 +167,31 @@ class AwsSns(TerraformComputeResource):
 
 
 class AWSApiGatewayRestApi(TerraformComputeResource):
+    description: Optional[str] = None
 
     @staticmethod
     def get_terraform_name() -> str:
-        return "????"  # CloudResourceType.AWS_API_GATEWAY_REST_API.value
+        return CloudResourceType.AWS_API_GATEWAY_REST_API.value
+
+
+# noinspection PyDefaultArgument
+class AWSApiGatewayIntegration(TerraformComputeResource):
+    rest_api_id: str
+    uri: Optional[str] = None
+
+    @staticmethod
+    def get_terraform_name() -> str:
+        return CloudResourceType.AWS_API_GATEWAY_INTEGRATION.value
+
+    @classmethod
+    def process_hcl(cls, obj: dict[str, any], additional_fields: dict[str, any] = {}) -> TerraformResource:
+        return super().process_hcl(obj, additional_fields)
+
+    def get_identifiers(self, identifiers: set[Optional[str]] = set()) -> set[str]:
+        return super().get_identifiers(identifiers | {self.rest_api_id})
+
+    def get_references(self, references: set[Optional[str]] = set()) -> set[str]:
+        return super().get_references(references | {self.uri})
 
 
 # add new resources here

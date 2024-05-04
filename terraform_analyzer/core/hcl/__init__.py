@@ -38,12 +38,15 @@ class CloudResourceType(str, Enum):
     AWS_SNS = "aws_sns_topic"
 
     # gateways
-    # AWS_API_GATEWAY_REST_API = "aws_api_gateway_rest_api"
+    AWS_API_GATEWAY_REST_API = "aws_api_gateway_rest_api"
+    AWS_API_GATEWAY_INTEGRATION = "aws_api_gateway_integration"
     # AWS_API_GATEWAY_RESOURCE = "aws_api_gateway_resource"
 
     # permissions
     AWS_LAMBDA_PERMISSION = "aws_lambda_permission"
-    # AWS_IAM_POLICY = "aws_iam_policy" :´(
+    AWS_IAM_ROLE = "aws_iam_role"
+    AWS_IAM_POLICY = "aws_iam_policy"
+    AWS_IAM_ROLE_POLICY_ATTACHMENT = "aws_iam_role_policy_attachment"
 
 
 # TODO missing POD resource / apigateway / database

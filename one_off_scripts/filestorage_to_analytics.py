@@ -9,12 +9,40 @@ from one_off_scripts import OUTPUT_FOLDER
 from terraform_analyzer import LocalResource
 from terraform_analyzer.core.hcl import hcl_project_parser
 from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
-from terraform_analyzer.core.hcl.hcl_obj.hcl_permissions import AwsLambdaTerraformPermission
-from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import AwsLambda, AwsDynamoDb
+from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import AwsLambda, AwsDynamoDb, AWSApiGatewayRestApi
 
 logger = logging.getLogger("repo_tf_fetcher")
+logging.basicConfig(level=logging.CRITICAL)
 
-WORTHY_CLASSES: set[str] = set(x.__name__ for x in [AwsLambdaTerraformPermission, AwsLambda, AwsDynamoDb])
+# WORTHY_CLASSES: set[str] = set(x.__name__ for x in [AwsLambdaTerraformPermission, AwsLambda, AwsDynamoDb])
+WORTHY_CLASSES: set[str] = set(x.__name__ for x in [AWSApiGatewayRestApi, AwsLambda, AwsDynamoDb])
+
+
+class Node(BaseModel):
+    terraform_resource: TerraformResource
+    connections: list[any] = []
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class Connection(BaseModel):
+    connects_to: Node
+    justification: set[str]
+
+
+class Graph(BaseModel):
+    nodes: [Node]
+
+    def get_all_connections(self) -> [Connection]:
+        conn = []
+        node: Node
+        for node in self.nodes:
+            conn.extend(node.connections)
+        return conn
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class RepoAnalytics(BaseModel):
@@ -25,7 +53,14 @@ class RepoAnalytics(BaseModel):
     terraform_resources: [TerraformResource]
 
     def is_worthy(self) -> bool:
-        return WORTHY_CLASSES.issubset(self.type_of_resources)
+        return any(map(lambda x: "aws" in x.lower(), self.type_of_resources))
+
+    def get_num_of_resources(self, resource_type: set[type(TerraformResource)]):
+        count = 0
+        for res in self.terraform_resources:
+            if type(res) in resource_type:
+                count += 1
+        return count
 
     def __str__(self) -> str:
         return f"repo_id={self.repo_id} num_resource={self.num_of_resources} types={self.type_of_resources} " \
@@ -35,19 +70,28 @@ class RepoAnalytics(BaseModel):
         arbitrary_types_allowed = True
 
 
-def get_label_names() -> {str}:
-    pass
+def _build_graph(terraform_resources: [TerraformResource]) -> Graph:
+    nodes: [Node] = list(map(lambda x: Node(terraform_resource=x), terraform_resources))
+
+    # todo add a node for each terraform_resource
+    node: Node
+    for node in nodes:
+        references: set[str] = node.terraform_resource.get_references()
+
+        other_node: Node
+        for other_node in nodes:
+            if node == other_node:
+                continue
+
+            other_resource_ids = other_node.terraform_resource.get_identifiers()
+
+            if references.intersection(other_resource_ids):
+                node.connections.append(other_node)
+
+    return Graph(nodes=nodes)
 
 
-def get_iam_types() -> [str]:
-    pass
-
-
-def get_service_list() -> [str]:
-    pass
-
-
-def get_file_count(full_path: str) -> int:
+def _get_file_count(full_path: str) -> int:
     cmd = f"find {full_path} | wc -l"
     result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, text=True)
 
@@ -56,7 +100,7 @@ def get_file_count(full_path: str) -> int:
     return file_count
 
 
-def get_repo_id(path: str) -> str:
+def _get_repo_id(path: str) -> str:
     repo_name = os.listdir(path)[0]
     author_name = os.path.basename(path)
 
@@ -64,7 +108,7 @@ def get_repo_id(path: str) -> str:
 
 
 # noinspection PyUnboundLocalVariable
-def get_root_main_path(project_path: str) -> Optional[str]:
+def _get_root_main_path(project_path: str) -> Optional[str]:
     cmd = f"find {project_path} | grep -i main.tf"
     result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, text=True)
 
@@ -86,9 +130,9 @@ def get_root_main_path(project_path: str) -> Optional[str]:
 
 def analyze_repo(repo_id: str) -> bool:
     project_path = f"{OUTPUT_FOLDER}/{repo_id}"
-    file_count: int = get_file_count(project_path)
+    file_count: int = _get_file_count(project_path)
 
-    root_main_path = get_root_main_path(project_path)
+    root_main_path = _get_root_main_path(project_path)
 
     if not root_main_path:
         # https://github.com/mbrydak/glowing-couscous/tree/main/task2/terraform/net
@@ -112,10 +156,10 @@ def analyze_repo(repo_id: str) -> bool:
                                    type_of_resources={x.__class__.__name__ for x in component_list},
                                    terraform_resources=component_list)
     if repo_analytics.is_worthy():
-
-        print(f"{repo_analytics}")
-        for component in component_list:
-            print(f"\t\t{component.get_terraform_name()}: {component}")
+        graph: Graph = _build_graph(repo_analytics.terraform_resources)
+        connection_size = len(graph.get_all_connections())
+        if connection_size > 0:
+            print(f"{repo_analytics.repo_id}\t conn={connection_size}")
 
         return True
 
@@ -131,7 +175,7 @@ def main():
     unskiped_repos = 0
     for author_name in repo_list:
         author_path = f"{OUTPUT_FOLDER}/{author_name}"
-        repo_id: str = get_repo_id(author_path)
+        repo_id: str = _get_repo_id(author_path)
 
         try:
             success = analyze_repo(repo_id)
@@ -146,7 +190,7 @@ def main():
 
         count += 1
 
-        if count % 10 == 0:
+        if count % 1000 == 0:
             per = "{:.2f}".format(count / repo_count * 100)
             print(f"{per}%")
 

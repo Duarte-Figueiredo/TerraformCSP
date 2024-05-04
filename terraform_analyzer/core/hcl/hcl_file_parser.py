@@ -48,7 +48,7 @@ def extract_relevant_resources_from_dict(hcl_dict: dict, path_context: str) -> l
 
     for key, value in hcl_dict.items():
         context_key = f"{path_context}_{key}"
-        if key in CLOUD_RESOURCE_TYPE_VALUES:
+        if key in CLOUD_RESOURCE_TYPE_VALUES and context_key.endswith(f"{RESOURCE}_{key}"):
             relevant_resources.append({key: value})
         elif key == VARIABLE and RESOURCE not in path_context:
             relevant_resources.append({context_key: value})
