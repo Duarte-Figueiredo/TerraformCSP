@@ -1,4 +1,3 @@
-import logging
 import os
 from datetime import date, datetime
 from typing import Optional, List
@@ -16,7 +15,7 @@ OUTPUT_FOLDER = os.environ.get("OUTPUT", "/output")
 
 MONGO_QUERY = os.environ.get('QUERY', None)
 
-logging.basicConfig(level=logging.WARNING)
+# logging.basicConfig(level=logging.WARNING)
 
 
 async def initialize_db():

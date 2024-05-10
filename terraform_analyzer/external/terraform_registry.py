@@ -1,4 +1,3 @@
-# https://registry.terraform.io/v1/modules/terraform-aws-modules/kms/aws
 import logging
 from typing import List
 

@@ -7,7 +7,7 @@ from github import Repository, Branch
 from github.ContentFile import ContentFile
 from pydantic import BaseModel
 
-from terraform_analyzer.core import RemoteResource, GitHubReference
+from terraform_analyzer.core import RemoteResource, GitHubReference, utils
 from terraform_analyzer.external import github_client
 
 DOT_COM_REGEX = r".*?\.com\/"
@@ -132,15 +132,7 @@ def dependency_builder(dependency: str, parent_rr: RemoteResource, ghr: GitHubRe
     relative_path: tuple[str, ...] = parent_rr.relative_path + (
         parent_rr.name,) if parent_rr.is_directory else parent_rr.relative_path
 
-    backtrack_count: int = dependency.count("../")
-
-    if backtrack_count > 0:
-        path_list = path.split("/")
-        path = path_list[:-backtrack_count:]
-
-    dependency = dependency.removeprefix('./')
-
-    resource_path = f"{path}/{dependency}"
+    resource_path = utils.resolve_path_local_reference(path, dependency)
 
     is_dir = is_resource_link_type_a_dir(resource_path, ghr)
 

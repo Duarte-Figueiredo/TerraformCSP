@@ -64,7 +64,6 @@ class RemoteResource(BaseModel):
 
 
 class LocalResource(BaseModel):
-    # local_path contains name
     full_path: str
     name: str
     is_directory: bool

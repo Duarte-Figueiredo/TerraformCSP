@@ -1,17 +1,41 @@
 from enum import Enum
-from typing import List, Optional
+from typing import Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
-# provider "aws" {
-#   version = "~> 2.0"
-#   region  = var.region
-# }
-class CloudProviderType(str, Enum):
-    AWS = 'aws'
-    GCLOUD = 'gcloud'
-    AZURE = 'azure'
+class TerraformSyntax(BaseModel):
+    path_context: str
+    terraform_resource_name: str
+    __pydantic_extra__: dict[str, any] = {}
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = "allow"
+
+
+class VariableTf(TerraformSyntax):
+    description: Optional[Union[str, int, float, bool]] = None
+    default: Optional[any] = None
+    var_type: Optional[str] = Field(alias="type", default=None)
+
+    def model_post_init(self, __context):
+        if type(self.default) not in [int, bool, float, str]:
+            self.default = None
+
+
+class ResourceTf(TerraformSyntax):
+    resource_type: str
+
+    class Config:
+        frozen = True
+
+
+class ModuleTf(TerraformSyntax):
+    source: str
+
+    def model_post_init(self, __context):
+        self.source = self.source.removeprefix("./")
 
 
 class CloudResourceType(str, Enum):
@@ -47,33 +71,40 @@ class CloudResourceType(str, Enum):
     AWS_IAM_ROLE = "aws_iam_role"
     AWS_IAM_POLICY = "aws_iam_policy"
     AWS_IAM_ROLE_POLICY_ATTACHMENT = "aws_iam_role_policy_attachment"
+    AWS_IAM_POLICY_DOCUMENT = "aws_iam_policy_document"
+
+    # event
+    AWS_LAMBDA_EVENT_SOURCE_MAPPING = "aws_lambda_event_source_mapping"
+
+    def get_cloud_service_name(self) -> Optional[str]:
+        if self == self.AWS_LAMBDA:
+            return "lambda"
+        elif self == self.AWS_DYNAMO_DB:
+            return "dynamodb"
+        elif self == self.AWS_SNS:
+            return "sns"
+        elif self == self.AWS_SQS:
+            return "sqs"
+        elif self == self.AWS_API_GATEWAY_REST_API:
+            return "apigateway"
+        else:
+            return None
+
+    def get_service_permission_identifier(self) -> Optional[str]:
+        if self == self.AWS_LAMBDA:
+            return "lambda.amazonaws.com"
+        elif self == self.AWS_DYNAMO_DB:
+            return "dynamodb.amazonaws.com"
+        elif self == self.AWS_SNS:
+            return "sns.amazonaws.com"
+        elif self == self.AWS_SQS:
+            return "sqs.amazonaws.com"
+        elif self == self.AWS_API_GATEWAY_REST_API:
+            return "apigateway.amazonaws.com"
+        else:
+            return None
 
 
 # TODO missing POD resource / apigateway / database
 
 CLOUD_RESOURCE_TYPE_VALUES: set[str] = {x.value for x in CloudResourceType}
-
-
-class CloudResource(BaseModel):
-    resource_type: CloudResourceType
-    name: str
-
-
-class CloudClusterResource(BaseModel):
-    resource_type: CloudResourceType
-    cloud_resources: List[CloudResource]
-
-
-class CloudVpc(BaseModel):
-    id: Optional[str]
-    cloud_resources: List[CloudResource]
-
-
-class CloudAccount(BaseModel):
-    id: Optional[str]
-    cloud_vpcs: List[CloudVpc]
-
-
-class CloudProvider(BaseModel):
-    cloud_provider_type: CloudProviderType
-    cloud_accounts: List[CloudAccount]

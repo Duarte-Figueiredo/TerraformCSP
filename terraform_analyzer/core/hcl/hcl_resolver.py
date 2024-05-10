@@ -1,22 +1,16 @@
 # resolves the variables
 import logging
-import os
 import re
-from typing import Any, Optional, Union
+from typing import Optional, Union, List, Type
 
 from pydantic import ValidationError
 
+from terraform_analyzer.core import utils
+from terraform_analyzer.core.hcl import TerraformSyntax, VariableTf, ModuleTf, ResourceTf
 from terraform_analyzer.core.hcl.hcl_obj import TerraformResource
+from terraform_analyzer.core.hcl.hcl_obj.hcl_events import ALL_TERRAFORM_EVENTS
 from terraform_analyzer.core.hcl.hcl_obj.hcl_permissions import ALL_TERRAFORM_PERMISSIONS
 from terraform_analyzer.core.hcl.hcl_obj.hcl_resources import ALL_TERRAFORM_RESOURCES
-
-RESOURCE = "_resource"
-VARIABLE = "_variable"
-
-DEFAULT = "default"
-METADATA = "metadata"
-TAGS = "tags"
-NAME = "name"
 
 COUNT_INDEX = "count.index"
 
@@ -24,68 +18,11 @@ VAR_PATTERN = re.compile('\$\{var\.[^}]*}')
 COUNT_PATTERN = re.compile('\$\{count\.[^}]*}')
 VAR_NAME_PATTERN = re.compile('\$\{(?:(?:var)|(?:count))\.([^}]*)}')
 
-TF_RESOURCE_NAMES: set[str] = {"name", "function_name"}
+ALL_TERRAFORM: dict[str, Type[TerraformResource]] = ALL_TERRAFORM_RESOURCES | \
+                                                    ALL_TERRAFORM_PERMISSIONS | \
+                                                    ALL_TERRAFORM_EVENTS
 
 logger = logging.getLogger("hcl_resolver")
-
-
-def _load_variables(hcl_variables: list[dict[str, any]]) -> dict[str, Union[str, int]]:
-    var_name_value: dict[str, str] = {}
-    for variables in hcl_variables:
-        var_name: str
-        var_obj: dict[str, any]
-        for var_name, var_obj in variables.items():
-            value: str
-            if DEFAULT in var_obj and type(var_obj[DEFAULT] is str):
-                value = var_obj[DEFAULT]
-            else:
-                value = "NO_DEFAULT_SET"
-            var_name_value[var_name] = value
-
-    return var_name_value
-
-
-def _get_resource_name_and_nested_obj(d: dict[str, dict[str, any]]) -> dict[str, any]:
-    if len(d) != 1:
-        raise RuntimeError(f"Invalid dict {d}")
-
-    terraform_resource_name = list(d.keys())[0]
-
-    return {"terraform_resource_name": terraform_resource_name, **d[terraform_resource_name]}
-
-
-def _extract_component_from_dict(d: dict) -> Optional[TerraformResource]:
-    for key, obj in d.items():
-        resource_type: str = key
-
-        if resource_type in ALL_TERRAFORM_PERMISSIONS:
-            clz = ALL_TERRAFORM_PERMISSIONS[resource_type]
-            nested_obj = _get_resource_name_and_nested_obj(obj)
-
-            return clz(**nested_obj)
-        elif resource_type in ALL_TERRAFORM_RESOURCES:
-            clz = ALL_TERRAFORM_RESOURCES[resource_type]
-            return clz.process_hcl(obj)
-        else:
-            raise RuntimeError(
-                f"Unable to resolve '{resource_type}', please create a terraform permission or resource class")
-
-    raise RuntimeError(f"Empty component not allowed")
-
-
-def _extract_component_from_list(lis: list[any]) -> [TerraformResource]:
-    components: [TerraformResource] = []
-    for item in lis:
-        if type(item) is list:
-            item: list
-            components.extend(_extract_component_from_list(item))
-        elif type(item) is dict:
-            item: dict
-            components.append(_extract_component_from_dict(item))
-        else:
-            raise RuntimeError(f"I don't know how to process this '{type(item)}'")
-
-    return components
 
 
 def _resolve_str(value: str, variables: dict[str, Union[str, int]]) -> str:
@@ -131,10 +68,10 @@ def _resolve_any(value: any, variables: dict[str, Union[str, int]]) -> any:
         return _resolve_dict(value, variables)
     elif type(value) is list:
         return _resolve_list(value, variables)
-    elif type(value) is int or type(value) is bool:
+    elif type(value) in [int, bool, float]:
         return value
     elif type(value) is str:
-        return _resolve_str(value, variables)
+        return _resolve_str(value, variables).replace("'", '"')
     else:
         raise RuntimeError(f"unable to resolve {type(value)}")
 
@@ -145,39 +82,103 @@ def _resolve_component(component: TerraformResource, variables: dict[str, Union[
     return type(component)(**resolved_dict)
 
 
-def resolve(hcl_raw_list: list[dict[str, Any]]) -> list[TerraformResource]:
-    hcl_resolved_list: list[TerraformResource] = []
+def resolve_module(modules: list[dict[str, dict[str, any]]], path: str) -> list[(str, list[dict[str, any]])]:
+    result: list[(str, list[dict[str, any]])] = []
+    for module in modules:
+        module_name = next(iter(module))
+        module = module[module_name]
+        if type(module) is not dict:
+            raise RuntimeError(f"Unexpected type {type(module)}")
 
-    hcl_variables: dict[str, list[dict[str, any]]] = {}
+        module: dict
 
-    for hcl_raw in hcl_raw_list:
-        for key in hcl_raw:
-            if key.endswith(VARIABLE):
-                path = os.path.dirname(key)
-                value = hcl_raw[key]
+        local_ref = module.get("source", "")
+        resolved_path = utils.resolve_path_local_reference(path, local_ref)
 
-                hcl_variables[path] = value
+        del module["source"]
+        if module:
+            result.append((f"{resolved_path}_{module_name}", [module]))
+    return result
 
-    for hcl_raw in hcl_raw_list:
-        for key in hcl_raw.keys():
-            if key.endswith(RESOURCE):
-                path = os.path.dirname(key)
 
-                variables: dict[str, Union[str, int]] = _load_variables(
-                    hcl_variables[path]) if path in hcl_variables else {}
-                value = hcl_raw[key]
+def map_resource_tf_to_terraform_resource(resource_tf: ResourceTf,
+                                          context_variable: List[VariableTf],
+                                          module_variable: List[ModuleTf]) -> Optional[TerraformResource]:
+    resource_type = resource_tf.resource_type
 
-                for resource in value:
-                    try:
-                        new_comps: list[Optional[TerraformResource]] = _extract_component_from_list(resource)
-                    except ValidationError as e:
-                        logger.error(f"Validation error on component {resource}", exc_info=e)
-                        continue
+    fields = resource_tf.model_dump(include=resource_tf.model_fields)
+    extras = resource_tf.model_extra
 
-                    for unresolved_comp in new_comps:
-                        if unresolved_comp is None:
-                            continue
-                        resolved_comp = _resolve_component(unresolved_comp, variables)
-                        hcl_resolved_list.append(resolved_comp)
+    assert fields.keys().isdisjoint(extras.keys())
 
-    return hcl_resolved_list
+    fields.update(extras)
+
+    variables: dict[str, Union[str, bool, int, float]] = {}
+    for var in context_variable:
+        variables[var.terraform_resource_name] = var.default
+
+    for module in module_variable:
+        for key, value in module.model_extra.items():
+            if type(value) in {str, bool, int, float}:
+                # module variables should override local variables
+                variables[key] = value
+
+    resolved_fields = _resolve_any(fields, variables)
+
+    if resource_type in ALL_TERRAFORM:
+        clz = ALL_TERRAFORM[resource_type]
+        try:
+            return clz(**resolved_fields)
+        except ValidationError as e:
+            logger.error(f"Failed to parse {resource_type} from '{resolved_fields}': {str(e)}")
+            return None
+    else:
+        raise RuntimeError(
+            f"Unable to resolve '{resource_type}', please create a terraform permission or resource class")
+
+
+def resolve(tf_syntax: List[TerraformSyntax]) -> list[TerraformResource]:
+    result: [TerraformResource] = []
+
+    # noinspection PyTypeChecker
+    variables: list[VariableTf] = list(filter(lambda x: type(x) is VariableTf, tf_syntax))
+
+    # noinspection PyTypeChecker
+    modules: list[ModuleTf] = list(filter(lambda x: type(x) is ModuleTf, tf_syntax))
+
+    # noinspection PyTypeChecker
+    resources: list[ResourceTf] = list(filter(lambda x: type(x) is ResourceTf, tf_syntax))
+
+    processed_resources: list[ResourceTf] = []
+
+    for module in modules:
+        context = module.source
+        context_variables: list[VariableTf] = list(filter(lambda x: context in x.path_context, variables))
+
+        parameterized_resources = []
+
+        for resource in resources:
+            # TODO remove full path from resource.path_context
+            if context in resource.path_context:
+                parameterized_resources.append(resource)
+                processed_resources.append(resource)
+
+        param_res: ResourceTf
+        for param_res in parameterized_resources:
+            tmp = map_resource_tf_to_terraform_resource(param_res, context_variables, [module])
+            if tmp:
+                result.append(tmp)
+
+    for resource in resources:
+        if resource in processed_resources:
+            continue
+        context = resource.path_context
+
+        context_modules: list[ModuleTf] = list(filter(lambda x: x.source in context, modules))
+        context_variables: list[VariableTf] = list(filter(lambda x: context in x.path_context, variables))
+
+        tmp = map_resource_tf_to_terraform_resource(resource, context_variables, context_modules)
+        if tmp:
+            result.append(tmp)
+
+    return result

@@ -11,191 +11,173 @@ ENVIRONMENT = "environment"
 VARIABLES = "variables"
 DESCRIPTION = "description"
 
-TF_RESOURCE_NAMES: set[str] = {"name", "function_name"}
 
-
-# noinspection PyDefaultArgument
 class TerraformComputeResource(TerraformResource):
-    name: Optional[str] = None
-
-    def get_identifiers(self, identifiers: set[Optional[str]] = set()) -> set[str]:
-        return super().get_identifiers(identifiers) | {self.name}
-
-    # noinspection PyDefaultArgument,PyArgumentList
-    @classmethod
-    def process_hcl(cls, obj: dict[str, any],
-                    additional_fields: dict[str, any] = {}) -> TerraformResource:
-        terraform_resource_name: str = list(obj.keys())[0]
-        obj: dict[str, any] = obj[terraform_resource_name]
-
-        return cls(terraform_resource_name=terraform_resource_name,
-                   **obj,
-                   **additional_fields)
+    pass
 
 
-# noinspection PyDefaultArgument
 class AwsLambda(TerraformComputeResource):
     role: Optional[str] = None
-    env_variables: Optional[dict[str, Union[str, bool, int]]] = None
+    environment: Optional[Union[dict, list]] = None
+    env_variables: dict[str, str] = {}
 
-    def get_identifiers(self, identifiers: set[Optional[str]] = set()) -> set[str]:
-        return super().get_identifiers(identifiers) | {self.role}
+    def model_post_init(self, __context):
+        # TODO handle variables as str reference instead of dict block eg: "{'variables': '${var.lambda_runtime_environment_variables}'}"
+        if type(self.environment) is dict:
+            if VARIABLES in self.environment and type(self.environment[VARIABLES]) is dict:
+                self.env_variables.update(self.environment[VARIABLES])
+        elif type(self.environment) is list:
+            for item in self.environment:
+                if VARIABLES in item and type(item[VARIABLES]) is dict:
+                    self.env_variables.update(item[VARIABLES])
 
-    def get_references(self, references: set[Optional[str]] = set()) -> set[str]:
+    def get_identifiers(self, identifiers=None) -> set[str]:
+        if identifiers is None:
+            identifiers = set()
+        return super().get_identifiers(identifiers)
+
+    def get_references(self, references=None) -> set[str]:
+        if references is None:
+            references = set()
         str_env_variables: set[str] = set(
-            filter(lambda x: x is str, self.env_variables)) if self.env_variables else set()
-        return super().get_references(references | str_env_variables)
-
-    @classmethod
-    def process_hcl(cls, obj: dict[str, any],
-                    additional_fields: dict[str, any] = {}) -> TerraformResource:
-        data = next(iter(obj.values()))
-
-        if ENVIRONMENT in data:
-            env = data[ENVIRONMENT]
-            if type(env) is dict:
-                if VARIABLES in env:
-                    additional_fields["env_variables"] = env[VARIABLES]
-            elif type(env) is list:
-                for item in env:
-                    if VARIABLES in item:
-                        additional_fields["env_variables"] = item[VARIABLES]
-
-        return super().process_hcl(obj, additional_fields)
+            filter(lambda x: type(x) is str, self.env_variables.values())) if self.env_variables else set()
+        return super().get_references(references | str_env_variables | {self.role})
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AWS_LAMBDA.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AWS_LAMBDA
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class AwsCluster(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AWS_CLUSTER.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AWS_CLUSTER
 
 
 class AwsInstance(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AWS_INSTANCE.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AWS_INSTANCE
 
 
 class GCloudFunction(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.GCLOUD_FUNCTION.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.GCLOUD_FUNCTION
 
 
 class GCloudVmWareCluster(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.GCLOUD_VMWARE_CLUSTER.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.GCLOUD_VMWARE_CLUSTER
 
 
 class GCloudInstance(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.GCLOUD_INSTANCE.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.GCLOUD_INSTANCE
 
 
 class AzureFunctionLinux(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AZURE_FUNCTION_LINUX.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AZURE_FUNCTION_LINUX
 
 
 class AzureFunctionWindows(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AZURE_FUNCTION_WINDOWS.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AZURE_FUNCTION_WINDOWS
 
 
 class AzureCluster(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AZURE_CLUSTER.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AZURE_CLUSTER
 
 
 class AzureInstance(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AZURE_INSTANCE.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AZURE_INSTANCE
 
 
 class KubernetesService(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.KUBERNETES_SERVICE.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.KUBERNETES_SERVICE
 
 
 class KubernetesPod(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.KUBERNETES_POD.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.KUBERNETES_POD
 
 
 class AwsDynamoDb(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AWS_DYNAMO_DB.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AWS_DYNAMO_DB
 
 
 class AwsSqs(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AWS_SQS.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AWS_SQS
 
 
 class AwsSns(TerraformComputeResource):
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AWS_SNS.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AWS_SNS
 
 
-class AWSApiGatewayRestApi(TerraformComputeResource):
+class AwsApiGatewayRestApi(TerraformComputeResource):
     description: Optional[str] = None
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AWS_API_GATEWAY_REST_API.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AWS_API_GATEWAY_REST_API
 
 
-# noinspection PyDefaultArgument
-class AWSApiGatewayIntegration(TerraformComputeResource):
+class AwsApiGatewayIntegration(TerraformComputeResource):
     rest_api_id: str
     uri: Optional[str] = None
 
     @staticmethod
-    def get_terraform_name() -> str:
-        return CloudResourceType.AWS_API_GATEWAY_INTEGRATION.value
+    def get_cloud_resource_type() -> CloudResourceType:
+        return CloudResourceType.AWS_API_GATEWAY_INTEGRATION
 
-    @classmethod
-    def process_hcl(cls, obj: dict[str, any], additional_fields: dict[str, any] = {}) -> TerraformResource:
-        return super().process_hcl(obj, additional_fields)
+    def get_identifiers(self, identifiers=None) -> set[str]:
+        if identifiers is None:
+            identifiers = set()
+        return super().get_identifiers(identifiers)
 
-    def get_identifiers(self, identifiers: set[Optional[str]] = set()) -> set[str]:
-        return super().get_identifiers(identifiers | {self.rest_api_id})
-
-    def get_references(self, references: set[Optional[str]] = set()) -> set[str]:
-        return super().get_references(references | {self.uri})
+    def get_references(self, references=None) -> set[str]:
+        if references is None:
+            references = set()
+        return super().get_references(references | {self.uri, self.rest_api_id})
 
 
 # add new resources here
 
 
-ALL_TERRAFORM_RESOURCES: dict[str, Type[TerraformComputeResource]] = {x.get_terraform_name(): x for x in
+ALL_TERRAFORM_RESOURCES: dict[str, Type[TerraformComputeResource]] = {x.get_cloud_resource_type().value: x for x in
                                                                       TerraformComputeResource.__subclasses__()}
